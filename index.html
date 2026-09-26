@@ -107,28 +107,17 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   </div>
 </dialog>
 
-<!-- ============================================================
-     BAĞLANTI AYARLARI — kendi Firebase ve OneSignal bilgilerinizi
-     buraya girin. Diğer sitenizde kullandığınız Firebase projesini
-     birebir kullanabilirsiniz; sadece appId/config aynı kalır.
-     ============================================================ -->
 <script>
   window.ODAK_CONFIG = {
     firebase: {
-      apiKey: "BURAYA_FIREBASE_API_KEY",
-      authDomain: "BURAYA.firebaseapp.com",
-      projectId: "BURAYA_PROJECT_ID",
-      storageBucket: "BURAYA.appspot.com",
-      messagingSenderId: "BURAYA",
-      appId: "BURAYA_APP_ID"
+      apiKey: "AIzaSyCwklq5EWcoW3AMLgtB0MzLDap6Ca21baI",
+      authDomain: "pomodoro-4d237.firebaseapp.com",
+      projectId: "pomodoro-4d237",
+      storageBucket: "pomodoro-4d237.firebasestorage.app",
+      messagingSenderId: "160216497815",
+      appId: "1:160216497815:web:048f1a85e3835a8936f3d2"
     },
     oneSignalAppId: "a823248a-8bfe-48c3-b6ed-96419313a1b4",
-    // Pomodoro başladığında bu adrese POST atılır: {title, body, endAt}.
-    // Bu adres Zapier'deki "Webhooks by Zapier: Catch Hook" tetikleyicisinin
-    // verdiği URL olmalı. O Zap'in aksiyonu OneSignal'ın "Send Advanced Push
-    // Notification" işlemi olur ve Send After alanına {{endAt}} verisini,
-    // Content by Language alanına {{body}} verisini bağlarsın. Kurulum
-    // adımları sohbette yazıyor.
     scheduleEndpoint: "BURAYA_ZAPIER_WEBHOOK_URL"
   };
 </script>
@@ -153,7 +142,6 @@ const dur=m=>S.cfg[m]*60;
 const key=d=>new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);
 const left=()=>S.t.running?Math.max(0,Math.ceil((S.t.endAt-Date.now())/1000)):S.t.left;
 
-/* ---------------- Firebase: giriş + eşitleme ---------------- */
 const app=initializeApp(cfg.firebase);
 const auth=getAuth(app);
 const db=getFirestore(app);
@@ -176,7 +164,7 @@ function adopt(r){
   saveLocal();render();lock();
 }
 
-$('#loginBtn').onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(()=>{});
+$('#loginBtn').onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>alert(e.message||String(e)));
 
 onAuthStateChanged(auth,u=>{
   user=u;
@@ -193,11 +181,10 @@ onAuthStateChanged(auth,u=>{
     if(S.cfg.push)initPush();
   }else{
     $('#auth').innerHTML=`<button class="hbtn" id="loginBtn">Google ile giriş yap</button>`;
-    $('#loginBtn').onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(()=>{});
+    $('#loginBtn').onclick=()=>signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>alert(e.message||String(e)));
   }
 });
 
-/* ---------------- OneSignal: kapalıyken bildirim ---------------- */
 let osReady=false;
 function initPush(){
   if(osReady||!cfg.oneSignalAppId||cfg.oneSignalAppId.startsWith('BURAYA'))return;
@@ -209,11 +196,9 @@ function initPush(){
   OneSignalDeferred.push(async OneSignal=>{
     await OneSignal.init({appId:cfg.oneSignalAppId});
     OneSignal.Notifications.requestPermission();
-    if(user)OneSignal.login(user.uid); // OneSignal external_id = Firebase uid
+    if(user)OneSignal.login(user.uid);
   });
 }
-// Zamanlayıcı başlarken bitiş anını Cloud Function'a bildirir; fonksiyon
-// OneSignal REST API'sine send_after ile gecikmeli bildirim yollar.
 async function scheduleAlarm(endAt,label){
   if(!S.cfg.push||!cfg.scheduleEndpoint||cfg.scheduleEndpoint.includes('BURAYA'))return;
   try{
@@ -222,7 +207,6 @@ async function scheduleAlarm(endAt,label){
   }catch(e){}
 }
 
-/* ---------------- ses, bildirim, ekran ---------------- */
 let ac;
 function unlock(){try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();ac.resume()}catch(e){}}
 function beep(){
@@ -244,7 +228,6 @@ async function lock(){
 }
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){lock();tick()}});
 
-/* ---------------- zamanlayıcı ---------------- */
 function setMode(m,run){
   S.t={...S.t,mode:m,running:!!run,left:dur(m),endAt:run?Date.now()+dur(m)*1000:0};
   save();render();lock();
@@ -277,7 +260,6 @@ function tick(){
   paintTime();
 }
 
-/* ---------------- çizim ---------------- */
 function paintTime(){
   const l=left(),m=String(Math.floor(l/60)).padStart(2,'0'),s=String(l%60).padStart(2,'0');
   $('#time').textContent=m+':'+s;
@@ -301,7 +283,6 @@ function render(){
   $('#sWeek').textContent=week;
 }
 
-/* ---------------- olaylar ---------------- */
 $('#go').onclick=()=>S.t.running?pause():start();
 $('#reset').onclick=()=>setMode(S.t.mode,false);
 $('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
@@ -329,25 +310,5 @@ render();
 setInterval(tick,250);
 lock();
 </script>
-
-<!-- ============================================================
-Zapier kurulumu (kod yazmadan, Zapier panelinde):
-1. Yeni bir Zap oluştur.
-2. Tetikleyici: "Webhooks by Zapier" → "Catch Hook". Adım sana bir
-   webhook URL'si verir — o URL'i yukarıdaki scheduleEndpoint alanına
-   yapıştır.
-3. Aksiyon: "OneSignal" → "Send Advanced Push Notification".
-   - Content by Language (contents) alanına: {{1. Body}}
-   - Heading by Language (headings) alanına: {{1. Title}}
-   - Send After alanına: {{1. End At}}
-   - Segment Names to Send To (included_segments) alanına: All
-     (tek kullanıcı — sen — olduğun için en basiti bu; segment yerine
-     belirli bir cihazı hedeflemek istersen Player (User) IDs to Send To
-     alanını kullan ve included_segments'i boş bırak)
-4. Zap'i yayına al (Publish).
-Site tarafında OneSignal SDK'sı zaten tarayıcı bildirim izni istiyor;
-izin verildiğinde cihaz OneSignal'a otomatik kaydoluyor, ekstra bir
-şey yapmana gerek yok.
-============================================================ -->
 </body>
 </html>
