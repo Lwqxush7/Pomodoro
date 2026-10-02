@@ -5,6 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Odak — Pomodoro</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+window.firebaseConfig = {
+  apiKey: "AIzaSyCwklq5EWcoW3AMLgtB0MzLDap6Ca21baI",
+  authDomain: "pomodoro-4d237.firebaseapp.com",
+  projectId: "pomodoro-4d237",
+  storageBucket: "pomodoro-4d237.appspot.com",
+  messagingSenderId: "4d237",
+  appId: "1:4d237:web:auto"
+};
+
+const app = initializeApp(window.firebaseConfig);
+window.firebaseAuth = getAuth(app);
+window.googleProvider = new GoogleAuthProvider();
+</script>
+<!-- OneSignal SDK -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" async></script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#2b59c3}
 html{scroll-padding-top:env(safe-area-inset-top,0px);min-height:100%}
@@ -16,22 +36,23 @@ button,input{font:inherit}
 .wrap{max-width:900px;margin:0 auto;padding:0 16px 48px}
 header{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.2);margin-bottom:28px;gap:10px;flex-wrap:wrap}
 .logo{font-weight:800;font-size:22px;letter-spacing:-.02em}
-.hbtn{background:rgba(255,255,255,.16);color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
+.hbtn{background:rgba(255,255,255,.16);color:#fff;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;transition:background .15s}
 .hbtn:hover{background:rgba(255,255,255,.26)}
 .auth{display:flex;align-items:center;gap:8px}
-.chip{font-size:13px;opacity:.85}
-.avatar{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.3)}
+.chip{font-size:13px;opacity:.85;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:20px}
+.avatar{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
 .card{background:rgba(255,255,255,.12);border-radius:16px;padding:22px 20px 26px;text-align:center}
-.tabs{display:flex;justify-content:center;gap:6px;flex-wrap:wrap}
-.tab{background:none;border:0;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;opacity:.85;font-weight:500}
+.tabs{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.tab{background:none;border:0;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;opacity:.85;font-weight:500;transition:all .15s}
 .tab.on{background:rgba(0,0,0,.16);font-weight:700;opacity:1}
 .time{font-size:clamp(76px,24vw,132px);font-weight:800;line-height:1;margin:22px 0 20px;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
 .go{background:#fff;color:var(--bg);border:0;border-radius:10px;padding:14px 0;width:min(240px,70%);font-size:22px;font-weight:800;cursor:pointer;box-shadow:0 6px 0 rgba(255,255,255,.55);transition:transform .1s,box-shadow .1s}
 .go.on{transform:translateY(6px);box-shadow:none}
 .side{margin-top:22px;display:flex;justify-content:center;gap:10px}
-.small{background:none;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer}
+.small{background:none;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;transition:all .15s}
+.small:hover{border-color:#fff;background:rgba(255,255,255,.1)}
 .count{margin:22px 0 4px;opacity:.75;font-size:15px}
-.msg{font-size:18px;font-weight:500}
+.msg{font-size:18px;font-weight:500;min-height:24px}
 :focus-visible{outline:3px solid #fff;outline-offset:2px}
 .sum{margin-top:34px}
 .sum h2{font-size:20px;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.2);text-align:center}
@@ -93,6 +114,28 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .day-bar:hover .day-tooltip{opacity:1}
 .day-bar{position:relative}
 
+/* Settings Dialog - Improved */
+dialog{border:0;border-radius:14px;padding:0;width:min(400px,92vw);color:#222;background:#fff;box-shadow:0 20px 40px rgba(0,0,0,.2)}
+dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
+.dh{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e6e6e6}
+.dh b{font-size:18px}.dh button{border:0;background:none;font-size:22px;cursor:pointer;color:#555;padding:4px}
+.db{padding:20px}
+.setting-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #f0f0f0}
+.setting-row:last-of-type{border-bottom:none}
+.setting-label{font-size:15px;font-weight:500}
+.setting-control{display:flex;align-items:center;gap:8px}
+.setting-row input[type=number]{width:70px;padding:10px 12px;border:1px solid #e0e0e0;background:#fafafa;border-radius:8px;text-align:center;font-size:15px;transition:border-color .15s}
+.setting-row input[type=number]:focus{outline:none;border-color:#2b59c3;background:#fff}
+.setting-row input[type=range]{flex:1;max-width:180px;accent-color:#2b59c3}
+.setting-row input[type=checkbox]{width:20px;height:20px;accent-color:#2b59c3;cursor:pointer}
+.setting-row .btn-test{background:#2b59c3;color:#fff;border:0;border-radius:8px;padding:8px 16px;font-weight:600;cursor:pointer;transition:background .15s}
+.setting-row .btn-test:hover{background:#1e4aa3}
+.setting-row .switch{position:relative;width:44px;height:26px;background:#e0e0e0;border-radius:13px;cursor:pointer;transition:background .15s}
+.setting-row .switch.on{background:#2b59c3}
+.setting-row .switch::after{content:'';position:absolute;top:2px;left:2px;width:22px;height:22px;background:#fff;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:left .15s}
+.setting-row .switch.on::after{left:20px}
+.tt{font-size:13px;color:#777;margin:16px 0 0;line-height:1.5}
+
 /* Hidden utility */
 .hidden{display:none!important}
 .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
@@ -104,7 +147,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
   <header>
     <div class="logo">Odak</div>
     <div class="auth" id="auth">
-      <span class="chip" id="userChip" style="display:none"></span>
+      <span class="chip" id="userChip" style="display:none"><span id="userAvatar" class="avatar"></span><span id="userName"></span></span>
       <button class="hbtn" id="loginBtn">Google ile giriş yap</button>
       <button class="hbtn" id="logoutBtn" style="display:none">Çıkış</button>
     </div>
@@ -152,15 +195,42 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 <dialog id="dlg">
   <div class="dh"><b>Ayarlar</b><button id="closeSet" aria-label="Kapat">×</button></div>
   <div class="db">
-    <div class="row"><span>Pomodoro (dk)</span><input type="number" min="1" max="120" id="c_pomo"></div>
-    <div class="row"><span>Kısa mola (dk)</span><input type="number" min="1" max="60" id="c_short"></div>
-    <div class="row"><span>Uzun mola (dk)</span><input type="number" min="1" max="60" id="c_long"></div>
-    <div class="row"><span>Uzun mola aralığı</span><input type="number" min="2" max="12" id="c_every"></div>
-    <div class="row"><span>Molaları otomatik başlat</span><input type="checkbox" id="c_autoB"></div>
-    <div class="row"><span>Pomodoroları otomatik başlat</span><input type="checkbox" id="c_autoP"></div>
-    <div class="row"><span>Alarm sesi</span><input type="range" min="0" max="1" step=".05" id="c_vol"></div>
-    <div class="row"><span>Kapalıyken bildirim</span><input type="checkbox" id="c_push"></div>
-    <div class="row"><span>Alarmı dene</span><button class="hbtn" style="background:#2b59c3" id="test">Çal</button></div>
+    <div class="setting-row">
+      <span class="setting-label">Pomodoro (dk)</span>
+      <div class="setting-control"><input type="number" min="1" max="120" id="c_pomo"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Kısa mola (dk)</span>
+      <div class="setting-control"><input type="number" min="1" max="60" id="c_short"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Uzun mola (dk)</span>
+      <div class="setting-control"><input type="number" min="1" max="60" id="c_long"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Uzun mola aralığı</span>
+      <div class="setting-control"><input type="number" min="2" max="12" id="c_every"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Molaları otomatik başlat</span>
+      <div class="setting-control"><label class="switch" id="sw_autoB"><input type="checkbox" id="c_autoB"></label></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Pomodoroları otomatik başlat</span>
+      <div class="setting-control"><label class="switch" id="sw_autoP"><input type="checkbox" id="c_autoP"></label></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Alarm sesi</span>
+      <div class="setting-control"><input type="range" min="0" max="1" step="0.05" id="c_vol"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Kapalıyken bildirim (OneSignal)</span>
+      <div class="setting-control"><label class="switch" id="sw_push"><input type="checkbox" id="c_push"></label></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Alarmı dene</span>
+      <div class="setting-control"><button class="btn-test" id="test" type="button">Çal</button></div>
+    </div>
     <p class="tt">"Kapalıyken bildirim" OneSignal push izni ister. Ses için tarayıcı izni gerekir.</p>
   </div>
 </dialog>
@@ -185,17 +255,11 @@ function parseLocal(key){
   return new Date(y,m-1,d);
 }
 function startOfWeek(d){
-  const day=d.getDay(); // 0=Sun
-  const diff=(day+6)%7; // Mon=0
+  const day=d.getDay();
+  const diff=(day+6)%7;
   const nd=new Date(d);
   nd.setDate(d.getDate()-diff);
   nd.setHours(0,0,0,0);
-  return nd;
-}
-function endOfWeek(d){
-  const nd=startOfWeek(d);
-  nd.setDate(nd.getDate()+6);
-  nd.setHours(23,59,59,999);
   return nd;
 }
 function addDays(d,n){
@@ -212,23 +276,26 @@ let selectedWeekStart = null;
 // --- Storage ---
 const S={
   cfg:{...DEF},
-  t:{mode:'pomo',left:DEF.pomo*60,running:false,total:0},
-  log:{}, // 'YYYY-MM-DD' -> {n: count}
+  t:{mode:'pomo',left:DEF.pomo*60,running:false,total:0,lastUpdate:0},
+  log:{},
   user:null,
+  onesignalId:null,
   load(){
     try{
-      const raw=localStorage.getItem('pomo');
+      const raw=localStorage.getItem('pomo_v2');
       if(!raw) return;
       const d=JSON.parse(raw);
       if(d.cfg) this.cfg={...DEF,...d.cfg};
       if(d.t) this.t={...this.t,...d.t};
       if(d.log) this.log=d.log;
       if(d.user) this.user=d.user;
+      if(d.onesignalId) this.onesignalId=d.onesignalId;
     }catch(e){console.error('Load error',e)}
     this.t.left=this.t.running?this.t.left:dur(this.t.mode);
+    this.t.lastUpdate=this.t.lastUpdate||Date.now();
   },
   save(){
-    localStorage.setItem('pomo',JSON.stringify({cfg:this.cfg,t:this.t,log:this.log,user:this.user}));
+    localStorage.setItem('pomo_v2',JSON.stringify({cfg:this.cfg,t:this.t,log:this.log,user:this.user,onesignalId:this.onesignalId}));
   }
 };
 S.load();
@@ -254,13 +321,17 @@ function render(){
   $$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.m===S.t.mode));
   renderAuth();
   renderYearView();
+  renderSettingsUI();
 }
 
 function renderAuth(){
-  const chip=$('#userChip'), login=$('#loginBtn'), logout=$('#logoutBtn');
+  const chip=$('#userChip'), avatar=$('#userAvatar'), name=$('#userName'), login=$('#loginBtn'), logout=$('#logoutBtn');
   if(S.user){
-    chip.textContent=S.user.name||S.user.email||'Kullanıcı';
-    chip.style.display='inline-block';
+    name.textContent=S.user.name||S.user.email||'Kullanıcı';
+    avatar.textContent=(S.user.name||'U')[0].toUpperCase();
+    chip.style.display='inline-flex';
+    chip.style.alignItems='center';
+    chip.style.gap='6px';
     login.style.display='none';
     logout.style.display='inline-block';
   }else{
@@ -270,11 +341,29 @@ function renderAuth(){
   }
 }
 
+function renderSettingsUI(){
+  ['pomo','short','long','every'].forEach(k=>{
+    const el=$('#c_'+k);
+    if(el) el.value=S.cfg[k];
+  });
+  updateSwitch('autoB', S.cfg.autoB);
+  updateSwitch('autoP', S.cfg.autoP);
+  updateSwitch('push', S.cfg.push);
+  const volEl=$('#c_vol');
+  if(volEl) volEl.value=S.cfg.vol;
+}
+
+function updateSwitch(id, value){
+  const cb=$('#c_'+id);
+  const sw=$('#sw_'+id);
+  if(cb) cb.checked=value;
+  if(sw) sw.classList.toggle('on', value);
+}
+
 // --- Year View ---
 function renderYearView(){
   $('#yearDisplay').textContent = currentYear;
   
-  // Year stats
   let yearPomo=0, yearMin=0, yearDays=0;
   const yStart=new Date(currentYear,0,1), yEnd=new Date(currentYear,11,31,23,59,59);
   for(let d=new Date(yStart); d<=yEnd; d=addDays(d,1)){
@@ -285,7 +374,6 @@ function renderYearView(){
   $('#sYearMin').textContent=yearMin>=60?`${Math.floor(yearMin/60)} sa ${yearMin%60} dk`:yearMin+' dk';
   $('#sYearAvg').textContent=yearDays?Math.round(yearMin/yearDays):0;
 
-  // Months grid
   const grid=$('#monthsGrid');
   const today=todayDate();
   let html='';
@@ -295,14 +383,12 @@ function renderYearView(){
     const mEnd=new Date(currentYear,m+1,0);
     const mName=MONTHS[m];
     
-    // Month stats
     let mPomo=0, mMin=0;
     for(let d=new Date(mStart); d<=mEnd; d=addDays(d,1)){
       const e=S.log[localKey(d)];
       if(e?.n>0){mPomo+=e.n; mMin+=e.n*S.cfg.pomo;}
     }
     
-    // Build 4 weeks for this month (Mon-Sun weeks that intersect month)
     const firstMon=startOfWeek(mStart);
     let weeksHtml='';
     
@@ -310,18 +396,15 @@ function renderYearView(){
       const wStart=addDays(firstMon,w*7);
       const wEnd=addDays(wStart,6);
       
-      // Check overlap with month
       if(wEnd<mStart || wStart>mEnd){
         weeksHtml+=`<div class="week-card empty"><div class="week-label">Hafta ${w+1}</div><div class="week-total">—</div><div class="week-range">Bu ayda yok</div></div>`;
         continue;
       }
       
-      // Clamp to month bounds for display
       const dispStart=new Date(Math.max(wStart,mStart));
       const dispEnd=new Date(Math.min(wEnd,mEnd));
       const range=`${dispStart.getDate()}-${dispEnd.getDate()} ${mName.slice(0,3)}`;
       
-      // Week stats
       let wPomo=0, wMin=0;
       for(let d=new Date(wStart); d<=wEnd; d=addDays(d,1)){
         const e=S.log[localKey(d)];
@@ -347,10 +430,7 @@ function renderYearView(){
       <article class="month-card" role="listitem" aria-label="${mName} ${currentYear}">
         <header class="month-header">
           <span class="month-name">${mName}</span>
-          <div class="month-stats">
-            <span>${mPomo} 🍅</span>
-            <span>${mMin>=60?Math.floor(mMin/60)+' sa':mMin+' dk'}</span>
-          </div>
+          <div class="month-stats"><span>${mPomo} 🍅</span><span>${mMin>=60?Math.floor(mMin/60)+' sa':mMin+' dk'}</span></div>
         </header>
         <div class="month-weeks" role="list">${weeksHtml}</div>
       </article>
@@ -358,8 +438,6 @@ function renderYearView(){
   }
   
   grid.innerHTML=html;
-  
-  // Attach week card handlers
   grid.querySelectorAll('.week-card:not(.empty)').forEach(card=>{
     card.onclick=()=>showWeekDetail(card);
     card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showWeekDetail(card);}};
@@ -402,28 +480,10 @@ function renderWeekDetail(wStart,wEnd,year,month,weekIdx){
     const h=Math.round((day.count/maxCount)*70)||3;
     const dm=day.minutes>=60?`${Math.floor(day.minutes/60)} sa ${day.minutes%60} dk`:day.minutes+' dk';
     const tip=`${day.name} ${day.date.getDate()} ${MONTHS[month].slice(0,3)}: ${day.count} 🍅 (${dm})`;
-    barsHtml+=`
-      <div class="day-bar${day.count===0?' z':''}${day.isToday?' today':''}" data-date="${day.key}">
-        <span class="day-bar-value">${day.count||''}</span>
-        <span class="day-bar-graph" style="height:${h}%"></span>
-        <span class="day-bar-label">${day.name}</span>
-        <span class="day-tooltip">${tip}</span>
-      </div>
-    `;
+    barsHtml+=`<div class="day-bar${day.count===0?' z':''}${day.isToday?' today':''}"><span class="day-bar-value">${day.count||''}</span><span class="day-bar-graph" style="height:${h}%"></span><span class="day-bar-label">${day.name}</span><span class="day-tooltip">${tip}</span></div>`;
   });
   
-  detail.innerHTML=`
-    <header class="week-detail-header">
-      <span class="week-detail-title">Hafta ${weekIdx+1} · ${wStart.getDate()}-${wEnd.getDate()} ${MONTHS[month]} ${year}</span>
-      <button class="week-detail-close" id="closeWeekDetail" aria-label="Kapat">×</button>
-    </header>
-    <div class="week-detail-stats">
-      <div class="week-detail-stat"><b>${totalPomo}</b><span>Pomodoro</span></div>
-      <div class="week-detail-stat"><b>${totalMin>=60?Math.floor(totalMin/60)+' sa '+(totalMin%60)+' dk':totalMin+' dk'}</b><span>Odak Süresi</span></div>
-      <div class="week-detail-stat"><b>${avg}</b><span>Günlük Ort.</span></div>
-    </div>
-    <div class="day-bars" role="img" aria-label="Günlük pomodoro">${barsHtml}</div>
-  `;
+  detail.innerHTML=`<header class="week-detail-header"><span class="week-detail-title">Hafta ${weekIdx+1} · ${wStart.getDate()}-${wEnd.getDate()} ${MONTHS[month]} ${year}</span><button class="week-detail-close" id="closeWeekDetail">×</button></header><div class="week-detail-stats"><div class="week-detail-stat"><b>${totalPomo}</b><span>Pomodoro</span></div><div class="week-detail-stat"><b>${totalMin>=60?Math.floor(totalMin/60)+' sa '+(totalMin%60)+' dk':totalMin+' dk'}</b><span>Odak Süresi</span></div><div class="week-detail-stat"><b>${avg}</b><span>Günlük Ort.</span></div></div><div class="day-bars">${barsHtml}</div>`;
   $('#closeWeekDetail').onclick=closeWeekDetail;
 }
 
@@ -438,81 +498,222 @@ $('#prevYear').onclick=()=>{currentYear--;closeWeekDetail();render();};
 $('#nextYear').onclick=()=>{currentYear++;closeWeekDetail();render();};
 $('#backToYear').onclick=closeWeekDetail;
 
-// --- Timer logic ---
+// --- Timer logic (FIXED: accurate 1-second ticks) ---
 function setMode(m,reset=true){
   S.t.mode=m;
   S.t.left=dur(m);
-  if(reset){S.t.running=false;S.t.total=0}
+  S.t.total=0;
+  S.t.running=false;
+  S.t.lastUpdate=Date.now();
   S.save();render();
 }
 function tick(){
-  if(!S.t.running)return;
-  S.t.left--;
-  if(S.t.left<=0){
-    S.t.running=false;
-    S.t.total++;
-    const k=todayKey();
-    S.log[k]={n:(S.log[k]||{n:0}).n+1};
-    const next=S.t.mode==='pomo'?(S.t.total%S.cfg.every===0?'long':'short'):'pomo';
-    if((S.t.mode==='pomo'&&S.cfg.autoB)||(S.t.mode!=='pomo'&&S.cfg.autoP)){
-      S.t.mode=next;S.t.left=dur(next);S.t.running=true;
-    }else{
-      S.t.mode=next;S.t.left=dur(next);
-    }
-    beep();notify(S.t.mode==='pomo'?'Mola bitti, odaklan!':'Odaklanma bitti, mola!');S.save()
+  if(!S.t.running) return;
+  const now=Date.now();
+  const delta=Math.floor((now-S.t.lastUpdate)/1000);
+  if(delta>=1){
+    S.t.left=Math.max(0,S.t.left-delta);
+    S.t.lastUpdate=now;
+    if(S.t.left<=0) completeCycle();
+    render();
   }
-  render();
 }
-function start(){if(S.t.left<=0)return;S.t.running=true;unlock();S.save();render();}
+function completeCycle(){
+  S.t.running=false;
+  S.t.total++;
+  const k=todayKey();
+  S.log[k]={n:(S.log[k]||{n:0}).n+1};
+  const next=S.t.mode==='pomo'?(S.t.total%S.cfg.every===0?'long':'short'):'pomo';
+  const autoContinue=(S.t.mode==='pomo'&&S.cfg.autoB)||(S.t.mode!=='pomo'&&S.cfg.autoP);
+  S.t.mode=next;
+  S.t.left=dur(next);
+  S.t.running=autoContinue;
+  S.t.lastUpdate=Date.now();
+  beep();
+  notify(S.t.mode==='pomo'?'Mola bitti, odaklan!':'Odaklanma bitti, mola!');
+  S.save();
+}
+function start(){
+  if(S.t.left<=0) S.t.left=dur(S.t.mode);
+  S.t.running=true;
+  S.t.lastUpdate=Date.now();
+  unlockAudio();
+  S.save();render();
+}
 function pause(){S.t.running=false;S.save();render();}
 function beep(){
-  if(!S.cfg.vol)return;
-  const ctx=new(window.AudioContext||window.webkitAudioContext)();
-  const o=ctx.createOscillator(),g=ctx.createGain();
-  o.type='sine';o.frequency.value=880;g.gain.value=S.cfg.vol;
-  o.connect(g).connect(ctx.destination);o.start();o.stop(ctx.currentTime+.5);
+  if(!S.cfg.vol) return;
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type='sine';o.frequency.value=880;g.gain.value=S.cfg.vol;
+    o.connect(g).connect(ctx.destination);o.start();o.stop(ctx.currentTime+.5);
+  }catch(e){console.warn('Audio error',e)}
 }
-function notify(t){if('Notification'in window&&Notification.permission==='granted'&&S.cfg.push)new Notification('Odak',{body:t});}
-function unlock(){try{const c=new(window.AudioContext||window.webkitAudioContext)();c.resume()}catch{}}
-function lock(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
+function notify(t){
+  if('Notification'in window&&Notification.permission==='granted'&&S.cfg.push){
+    new Notification('Odak',{body:t,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⏱</text></svg>'});
+  }
+}
+function unlockAudio(){try{const c=new(window.AudioContext||window.webkitAudioContext)();c.resume()}catch{}}
+function requestNotifPerm(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
 
-// --- Auth (Google Sign-In placeholder) ---
-function initAuth(){
-  $('#loginBtn').onclick=()=>{
-    // Placeholder: replace with real Google Identity Services
-    const name=prompt('İsim girin (demo):')||'Demo Kullanıcı';
-    S.user={name,email:name.toLowerCase().replace(/\s+/g,'.')+'@demo.local'};
+// --- Firebase Auth ---
+async function initFirebaseAuth(){
+  if(!window.firebaseAuth) return;
+  const provider=window.googleProvider;
+  
+  onAuthStateChanged(window.firebaseAuth, async (user)=>{
+    if(user){
+      S.user={name:user.displayName,email:user.email,uid:user.uid,photo:user.photoURL};
+      await registerOneSignal(user.uid);
+    }else{
+      S.user=null;
+    }
     S.save();renderAuth();
+  });
+  
+  $('#loginBtn').onclick=async()=>{
+    try{
+      await signInWithPopup(window.firebaseAuth, provider);
+    }catch(e){
+      console.error('Firebase Auth error:', e);
+      let msg='Giriş başarısız';
+      if(e.code==='auth/unauthorized-domain'){
+        msg='Bu domain Firebase\'de yetkili değil. Firebase Console > Authentication > Settings > Authorized domains\'a bu domaini ekleyin.';
+      }else if(e.code==='auth/popup-blocked'){
+        msg='Popup engellendi. Tarayıcı ayarlarından izin verin.';
+      }else if(e.code==='auth/cancelled-popup-request'){
+        msg='Giriş iptal edildi.';
+      }else{
+        msg+=': '+e.message;
+      }
+      alert(msg);
+    }
   };
-  $('#logoutBtn').onclick=()=>{S.user=null;S.save();renderAuth();};
+  $('#logoutBtn').onclick=async()=>{
+    try{
+      await signOut(window.firebaseAuth);
+    }catch(e){console.error('Logout error',e)}
+  };
+}
+
+// --- OneSignal ---
+async function initOneSignal(){
+  if(!window.OneSignal) return;
+  try{
+    await OneSignal.init({
+      appId: "a823248a-8bfe-48c3-b6ed-96419313a1b4",
+      allowLocalhostAsSecureOrigin: true,
+      notifyButton: {enable: false},
+      welcomeNotification: {disable: true}
+    });
+    
+    OneSignal.on('subscriptionChange', async (isSubscribed)=>{
+      if(isSubscribed){
+        const id=await OneSignal.getUserId();
+        S.onesignalId=id;
+        S.save();
+        if(S.user?.uid){
+          await fetch('/api/register-device',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({userId:S.user.uid,onesignalId:id})
+          }).catch(()=>{});
+        }
+      }
+    });
+  }catch(e){console.warn('OneSignal init error',e)}
+}
+
+async function registerOneSignal(uid){
+  if(!window.OneSignal || !S.cfg.push) return;
+  try{
+    const permission=await OneSignal.getNotificationPermission();
+    if(permission==='granted'){
+      const id=await OneSignal.getUserId();
+      if(id){
+        S.onesignalId=id;
+        S.save();
+        await fetch('/api/register-device',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({userId:uid,onesignalId:id})
+        }).catch(()=>{});
+      }
+    }
+  }catch(e){console.warn('OneSignal register error',e)}
+}
+
+function promptOneSignal(){
+  if(window.OneSignal){
+    OneSignal.showNativePrompt().catch(()=>{});
+  }
 }
 
 // --- Settings ---
 function openSettings(){
-  ['pomo','short','long','every'].forEach(k=>$('#c_'+k).value=S.cfg[k]);
-  $('#c_autoB').checked=S.cfg.autoB;
-  $('#c_autoP').checked=S.cfg.autoP;
-  $('#c_vol').value=S.cfg.vol;
-  $('#c_push').checked=S.cfg.push;
+  renderSettingsUI();
   $('#dlg').showModal();
 }
 function closeSettings(){$('#dlg').close();}
+
 function bindSettings(){
   ['pomo','short','long','every'].forEach(k=>{
-    $('#c_'+k).onchange=e=>{
-      let v=parseInt(e.target.value)||DEF[k];
-      v=Math.max(1,Math.min(k==='every'?12:120,v));
-      S.cfg[k]=v;e.target.value=v;
-      if(!S.t.running&&k===S.t.mode)S.t.left=dur(k);
-      S.save();render();
-    };
+    const el=$('#c_'+k);
+    if(el){
+      el.onchange=e=>{
+        let v=parseInt(e.target.value)||DEF[k];
+        const max=k==='every'?12:120;
+        v=Math.max(1,Math.min(max,v));
+        S.cfg[k]=v;
+        e.target.value=v;
+        if(!S.t.running&&k===S.t.mode)S.t.left=dur(k);
+        S.save();render();
+      };
+    }
   });
-  $('#c_autoB').onchange=e=>{S.cfg.autoB=e.target.checked;S.save();};
-  $('#c_autoP').onchange=e=>{S.cfg.autoP=e.target.checked;S.save();};
-  $('#c_vol').oninput=e=>{S.cfg.vol=+e.target.value;S.save();};
-  $('#c_push').onchange=e=>{S.cfg.push=e.target.checked;S.save();if(e.target.checked)lock();};
-  $('#test').onclick=()=>{unlock();lock();beep();};
+  
+  const toggles=[
+    {id:'autoB',cfg:'autoB'},
+    {id:'autoP',cfg:'autoP'},
+    {id:'push',cfg:'push'}
+  ];
+  
+  toggles.forEach(t=>{
+    const cb=$('#c_'+t.id);
+    if(cb){
+      cb.onchange=()=>{
+        const newVal=cb.checked;
+        S.cfg[t.cfg]=newVal;
+        updateSwitch(t.id, newVal);
+        S.save();
+        if(t.cfg==='push' && newVal){
+          requestNotifPerm();
+          promptOneSignal();
+          registerOneSignal(S.user?.uid);
+        }
+        render();
+      };
+    }
+  });
+  
+  const volEl=$('#c_vol');
+  if(volEl){
+    volEl.oninput=e=>{
+      S.cfg.vol=+e.target.value;
+      S.save();
+    };
+  }
+  
+  const testBtn=$('#test');
+  if(testBtn){
+    testBtn.onclick=()=>{
+      unlockAudio();
+      requestNotifPerm();
+      beep();
+    };
+  }
 }
+
 $('#openSet').onclick=openSettings;
 $('#closeSet').onclick=closeSettings;
 $('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')closeSettings();});
@@ -524,11 +725,12 @@ $('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
 $$('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m,false));
 
 // --- Init ---
-initAuth();
+initFirebaseAuth();
+initOneSignal();
 bindSettings();
 render();
-setInterval(tick,250);
-lock();
+setInterval(tick,200);
+requestNotifPerm();
 </script>
 </body>
 </html>
