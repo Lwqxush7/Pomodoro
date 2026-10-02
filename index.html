@@ -22,6 +22,9 @@ window.firebaseConfig = {
 const app = initializeApp(window.firebaseConfig);
 window.firebaseAuth = getAuth(app);
 window.googleProvider = new GoogleAuthProvider();
+
+// Firebase hazır olduğunda global event tetikle
+window.dispatchEvent(new Event('firebase-ready'));
 </script>
 <!-- OneSignal SDK -->
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" async></script>
@@ -559,8 +562,11 @@ function unlockAudio(){try{const c=new(window.AudioContext||window.webkitAudioCo
 function requestNotifPerm(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
 
 // --- Firebase Auth ---
-async function initFirebaseAuth(){
-  if(!window.firebaseAuth) return;
+function initFirebaseAuth(){
+  if(!window.firebaseAuth){
+    console.warn('Firebase auth not ready yet');
+    return;
+  }
   const provider=window.googleProvider;
   
   onAuthStateChanged(window.firebaseAuth, async (user)=>{
@@ -574,6 +580,10 @@ async function initFirebaseAuth(){
   });
   
   $('#loginBtn').onclick=async()=>{
+    if(!window.firebaseAuth){
+      alert('Firebase henüz yüklenmedi, lütfen bekleyip tekrar deneyin');
+      return;
+    }
     try{
       await signInWithPopup(window.firebaseAuth, provider);
     }catch(e){
@@ -724,8 +734,16 @@ $('#reset').onclick=()=>setMode(S.t.mode,true);
 $('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
 $$('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m,false));
 
-// --- Init ---
-initFirebaseAuth();
+// --- Init: Firebase ready event'ini bekle ---
+function waitForFirebase(){
+  if(window.firebaseAuth){
+    initFirebaseAuth();
+  }else{
+    window.addEventListener('firebase-ready', initFirebaseAuth, {once:true});
+  }
+}
+
+waitForFirebase();
 initOneSignal();
 bindSettings();
 render();
