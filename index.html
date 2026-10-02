@@ -15,13 +15,20 @@ window.firebaseConfig = {
   authDomain: "pomodoro-4d237.firebaseapp.com",
   projectId: "pomodoro-4d237",
   storageBucket: "pomodoro-4d237.appspot.com",
-  messagingSenderId: "4d237",
+  messagingSenderId: "160216497815",
   appId: "1:160216497815:web:048f1a85e3835a8936f3d2"
 };
 
 const app = initializeApp(window.firebaseConfig);
-window.firebaseAuth = getAuth(app);
-window.googleProvider = new GoogleAuthProvider();
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+// Global expose - ana script erişebilsin
+window.firebaseAuth = auth;
+window.googleProvider = provider;
+window.firebaseSignInWithPopup = signInWithPopup;
+window.firebaseSignOut = signOut;
+window.firebaseOnAuthStateChanged = onAuthStateChanged;
 
 // Firebase hazır olduğunda global event tetikle
 window.dispatchEvent(new Event('firebase-ready'));
@@ -567,9 +574,8 @@ function initFirebaseAuth(){
     console.warn('Firebase auth not ready yet');
     return;
   }
-  const provider=window.googleProvider;
   
-  onAuthStateChanged(window.firebaseAuth, async (user)=>{
+  window.firebaseOnAuthStateChanged(window.firebaseAuth, async (user)=>{
     if(user){
       S.user={name:user.displayName,email:user.email,uid:user.uid,photo:user.photoURL};
       await registerOneSignal(user.uid);
@@ -585,7 +591,7 @@ function initFirebaseAuth(){
       return;
     }
     try{
-      await signInWithPopup(window.firebaseAuth, provider);
+      await window.firebaseSignInWithPopup(window.firebaseAuth, window.googleProvider);
     }catch(e){
       console.error('Firebase Auth error:', e);
       let msg='Giriş başarısız';
@@ -603,7 +609,7 @@ function initFirebaseAuth(){
   };
   $('#logoutBtn').onclick=async()=>{
     try{
-      await signOut(window.firebaseAuth);
+      await window.firebaseSignOut(window.firebaseAuth);
     }catch(e){console.error('Logout error',e)}
   };
 }
