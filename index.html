@@ -39,18 +39,6 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .stat{background:rgba(255,255,255,.12);border-radius:12px;padding:14px 6px}
 .stat b{display:block;font-size:28px;font-weight:800}
 .stat span{font-size:13px;opacity:.8}
-.bars{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;height:130px;margin-top:14px;background:rgba(255,255,255,.08);border-radius:12px;padding:14px 12px 8px}
-.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:12px;gap:4px}
-.bar i{display:block;width:100%;max-width:34px;background:#fff;border-radius:5px 5px 0 0;min-height:3px;opacity:.9}
-.bar.z i{opacity:.3}
-dialog{border:0;border-radius:14px;padding:0;width:min(400px,92vw);color:#222;background:#fff}
-dialog::backdrop{background:rgba(0,0,0,.45)}
-.dh{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e6e6e6}
-.dh b{font-size:18px}.dh button{border:0;background:none;font-size:22px;cursor:pointer;color:#555}
-.db{padding:6px 20px 20px}
-.row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f0}
-.row input[type=number]{width:70px;padding:8px;border:0;background:#efefef;border-radius:6px;text-align:center}
-.tt{font-size:13px;color:#777;margin:14px 0 0}
 
 /* Year/Month Navigation */
 .sum-head{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
@@ -116,7 +104,9 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
   <header>
     <div class="logo">Odak</div>
     <div class="auth" id="auth">
+      <span class="chip" id="userChip" style="display:none"></span>
       <button class="hbtn" id="loginBtn">Google ile giriş yap</button>
+      <button class="hbtn" id="logoutBtn" style="display:none">Çıkış</button>
     </div>
     <button class="hbtn" id="openSet">Ayarlar</button>
   </header>
@@ -181,298 +171,274 @@ const DAYS=['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
 const MONTHS=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 
 const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
 
-// State
+// --- Date helpers (local timezone safe) ---
+function localKey(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function parseLocal(key){
+  const [y,m,d]=key.split('-').map(Number);
+  return new Date(y,m-1,d);
+}
+function startOfWeek(d){
+  const day=d.getDay(); // 0=Sun
+  const diff=(day+6)%7; // Mon=0
+  const nd=new Date(d);
+  nd.setDate(d.getDate()-diff);
+  nd.setHours(0,0,0,0);
+  return nd;
+}
+function endOfWeek(d){
+  const nd=startOfWeek(d);
+  nd.setDate(nd.getDate()+6);
+  nd.setHours(23,59,59,999);
+  return nd;
+}
+function addDays(d,n){
+  const nd=new Date(d);
+  nd.setDate(d.getDate()+n);
+  return nd;
+}
+
+// --- State ---
 let currentYear = new Date().getFullYear();
-let currentView = 'year'; // 'year' or 'week'
-let selectedWeekStart = null; // Date object for selected week
+let currentView = 'year';
+let selectedWeekStart = null;
 
-// Storage
+// --- Storage ---
 const S={
-  cfg:{...DEF},t:{mode:'pomo',left:DEF.pomo*60,running:false,total:0},
-  log:{}, // key: 'YYYY-MM-DD' -> {n: count}
+  cfg:{...DEF},
+  t:{mode:'pomo',left:DEF.pomo*60,running:false,total:0},
+  log:{}, // 'YYYY-MM-DD' -> {n: count}
+  user:null,
   load(){
     try{
-      const d=JSON.parse(localStorage.getItem('pomo')||'{}');
-      if(d.cfg)this.cfg={...DEF,...d.cfg};
-      if(d.t)this.t={...this.t,...d.t};
-      if(d.log)this.log=d.log;
-    }catch(e){}
-    this.t.left=dur(this.t.mode);
+      const raw=localStorage.getItem('pomo');
+      if(!raw) return;
+      const d=JSON.parse(raw);
+      if(d.cfg) this.cfg={...DEF,...d.cfg};
+      if(d.t) this.t={...this.t,...d.t};
+      if(d.log) this.log=d.log;
+      if(d.user) this.user=d.user;
+    }catch(e){console.error('Load error',e)}
+    this.t.left=this.t.running?this.t.left:dur(this.t.mode);
   },
-  save(){localStorage.setItem('pomo',JSON.stringify({cfg:this.cfg,t:this.t,log:this.log}))}
+  save(){
+    localStorage.setItem('pomo',JSON.stringify({cfg:this.cfg,t:this.t,log:this.log,user:this.user}));
+  }
 };
 S.load();
 
+// --- Core helpers ---
 function dur(m){return S.cfg[m]*60}
-function key(d){return d.toISOString().slice(0,10)}
 function fmt(s){
   const m=Math.floor(s/60).toString().padStart(2,'0');
   const sec=(s%60).toString().padStart(2,'0');
-  return `${m}:${sec}`
+  return `${m}:${sec}`;
 }
+function todayKey(){return localKey(new Date())}
+function todayDate(){const d=new Date();d.setHours(0,0,0,0);return d;}
+
 function render(){
   $('#time').textContent=fmt(S.t.left);
   $('#count').textContent='#'+(S.t.total+1);
   $('#go').textContent=S.t.running?'DURDUR':'BAŞLAT';
   $('#go').classList.toggle('on',S.t.running);
-  $('#msg').textContent=S.t.mode==='pomo'?'Odaklanma zamanı!':S.t.mode==='short'?'Kısa mola':'Uzun Mola';
+  const labels={pomo:'Odaklanma zamanı!',short:'Kısa mola',long:'Uzun mola'};
+  $('#msg').textContent=labels[S.t.mode]||'';
   document.documentElement.dataset.mode=S.t.mode;
-  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.m===S.t.mode));
+  $$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.m===S.t.mode));
+  renderAuth();
   renderYearView();
 }
 
+function renderAuth(){
+  const chip=$('#userChip'), login=$('#loginBtn'), logout=$('#logoutBtn');
+  if(S.user){
+    chip.textContent=S.user.name||S.user.email||'Kullanıcı';
+    chip.style.display='inline-block';
+    login.style.display='none';
+    logout.style.display='inline-block';
+  }else{
+    chip.style.display='none';
+    login.style.display='inline-block';
+    logout.style.display='none';
+  }
+}
+
+// --- Year View ---
 function renderYearView(){
-  // Update year display
   $('#yearDisplay').textContent = currentYear;
   
-  // Calculate year stats
-  let yearPomo = 0, yearMin = 0, yearDays = 0;
-  const yearStart = new Date(currentYear, 0, 1);
-  const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59);
-  
-  for(let d = new Date(yearStart); d <= yearEnd; d.setDate(d.getDate() + 1)){
-    const k = key(d);
-    const e = S.log[k];
-    if(e && e.n > 0){
-      yearPomo += e.n;
-      yearMin += e.n * S.cfg.pomo;
-      yearDays++;
-    }
+  // Year stats
+  let yearPomo=0, yearMin=0, yearDays=0;
+  const yStart=new Date(currentYear,0,1), yEnd=new Date(currentYear,11,31,23,59,59);
+  for(let d=new Date(yStart); d<=yEnd; d=addDays(d,1)){
+    const e=S.log[localKey(d)];
+    if(e?.n>0){yearPomo+=e.n; yearMin+=e.n*S.cfg.pomo; yearDays++;}
   }
+  $('#sYearPomo').textContent=yearPomo;
+  $('#sYearMin').textContent=yearMin>=60?`${Math.floor(yearMin/60)} sa ${yearMin%60} dk`:yearMin+' dk';
+  $('#sYearAvg').textContent=yearDays?Math.round(yearMin/yearDays):0;
+
+  // Months grid
+  const grid=$('#monthsGrid');
+  const today=todayDate();
+  let html='';
   
-  $('#sYearPomo').textContent = yearPomo;
-  $('#sYearMin').textContent = yearMin >= 60 ? Math.floor(yearMin/60) + ' sa ' + (yearMin%60) + ' dk' : yearMin + ' dk';
-  $('#sYearAvg').textContent = yearDays > 0 ? Math.round(yearMin / yearDays) : 0;
-  
-  // Render months grid
-  const monthsGrid = $('#monthsGrid');
-  const today = new Date();
-  const todayKey = key(today);
-  
-  let html = '';
-  for(let month = 0; month < 12; month++){
-    const monthStart = new Date(currentYear, month, 1);
-    const monthEnd = new Date(currentYear, month + 1, 0);
-    const monthName = MONTHS[month];
+  for(let m=0; m<12; m++){
+    const mStart=new Date(currentYear,m,1);
+    const mEnd=new Date(currentYear,m+1,0);
+    const mName=MONTHS[m];
     
-    // Calculate month stats
-    let monthPomo = 0, monthMin = 0;
-    for(let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)){
-      const k = key(d);
-      const e = S.log[k];
-      if(e && e.n > 0){
-        monthPomo += e.n;
-        monthMin += e.n * S.cfg.pomo;
-      }
+    // Month stats
+    let mPomo=0, mMin=0;
+    for(let d=new Date(mStart); d<=mEnd; d=addDays(d,1)){
+      const e=S.log[localKey(d)];
+      if(e?.n>0){mPomo+=e.n; mMin+=e.n*S.cfg.pomo;}
     }
     
-    // Generate 4 weeks for this month
-    let weeksHtml = '';
-    // Get the first day of the month
-    const firstDay = monthStart.getDay(); // 0 = Sunday, but we want Monday = 0
-    const adjustedFirstDay = (firstDay + 6) % 7; // Convert to Monday = 0
-    const daysInMonth = monthEnd.getDate();
+    // Build 4 weeks for this month (Mon-Sun weeks that intersect month)
+    const firstMon=startOfWeek(mStart);
+    let weeksHtml='';
     
-    // We'll create 4 week cards for each month
-    // Each week card represents a 7-day period
-    for(let week = 0; week < 4; week++){
-      const weekStartDay = week * 7 + 1 - adjustedFirstDay;
-      const weekEndDay = weekStartDay + 6;
+    for(let w=0; w<4; w++){
+      const wStart=addDays(firstMon,w*7);
+      const wEnd=addDays(wStart,6);
       
-      // Check if this week has any days in the current month
-      const hasDays = weekStartDay <= daysInMonth && weekEndDay >= 1;
-      
-      if(!hasDays){
-        weeksHtml += `<div class="week-card empty"><div class="week-label">Hafta ${week+1}</div><div class="week-total">—</div><div class="week-range">Bu ayda yok</div></div>`;
+      // Check overlap with month
+      if(wEnd<mStart || wStart>mEnd){
+        weeksHtml+=`<div class="week-card empty"><div class="week-label">Hafta ${w+1}</div><div class="week-total">—</div><div class="week-range">Bu ayda yok</div></div>`;
         continue;
       }
       
-      // Calculate actual start and end dates for this week
-      const actualStartDay = Math.max(1, weekStartDay);
-      const actualEndDay = Math.min(daysInMonth, weekEndDay);
+      // Clamp to month bounds for display
+      const dispStart=new Date(Math.max(wStart,mStart));
+      const dispEnd=new Date(Math.min(wEnd,mEnd));
+      const range=`${dispStart.getDate()}-${dispEnd.getDate()} ${mName.slice(0,3)}`;
       
-      const weekStartDate = new Date(currentYear, month, actualStartDay);
-      const weekEndDate = new Date(currentYear, month, actualEndDay);
-      
-      // Calculate week stats
-      let weekPomo = 0, weekMin = 0;
-      for(let d = new Date(weekStartDate); d <= weekEndDate; d.setDate(d.getDate() + 1)){
-        const k = key(d);
-        const e = S.log[k];
-        if(e && e.n > 0){
-          weekPomo += e.n;
-          weekMin += e.n * S.cfg.pomo;
-        }
+      // Week stats
+      let wPomo=0, wMin=0;
+      for(let d=new Date(wStart); d<=wEnd; d=addDays(d,1)){
+        const e=S.log[localKey(d)];
+        if(e?.n>0){wPomo+=e.n; wMin+=e.n*S.cfg.pomo;}
       }
       
-      const isCurrentWeek = today >= weekStartDate && today <= weekEndDate;
-      const weekLabel = `Hafta ${week+1}`;
-      const weekRange = `${actualStartDay}-${actualEndDay} ${MONTHS[month].slice(0,3)}`;
+      const isCurrent = today>=wStart && today<=wEnd;
       
-      weeksHtml += `
-        <div class="week-card${isCurrentWeek ? ' current' : ''}" 
-             data-year="${currentYear}" 
-             data-month="${month}" 
-             data-week="${week}"
-             data-week-start="${key(weekStartDate)}"
-             data-week-end="${key(weekEndDate)}"
-             tabindex="0"
-             role="button"
-             aria-label="${weekLabel}, ${weekRange}, ${weekPomo} pomodoro">
-          <div class="week-label">${weekLabel}</div>
-          <div class="week-total">${weekPomo || '—'}</div>
-          <div class="week-range">${weekRange}</div>
+      weeksHtml+=`
+        <div class="week-card${isCurrent?' current':''}" 
+             data-year="${currentYear}" data-month="${m}" data-week="${w}"
+             data-wstart="${localKey(wStart)}" data-wend="${localKey(wEnd)}"
+             tabindex="0" role="button"
+             aria-label="Hafta ${w+1}, ${range}, ${wPomo} pomodoro">
+          <div class="week-label">Hafta ${w+1}</div>
+          <div class="week-total">${wPomo||'—'}</div>
+          <div class="week-range">${range}</div>
         </div>
       `;
     }
     
-    html += `
-      <article class="month-card" role="listitem" aria-label="${monthName} ${currentYear}">
+    html+=`
+      <article class="month-card" role="listitem" aria-label="${mName} ${currentYear}">
         <header class="month-header">
-          <span class="month-name">${monthName}</span>
+          <span class="month-name">${mName}</span>
           <div class="month-stats">
-            <span>${monthPomo} 🍅</span>
-            <span>${monthMin >= 60 ? Math.floor(monthMin/60) + ' sa' : monthMin + ' dk'}</span>
+            <span>${mPomo} 🍅</span>
+            <span>${mMin>=60?Math.floor(mMin/60)+' sa':mMin+' dk'}</span>
           </div>
         </header>
-        <div class="month-weeks" role="list" aria-label="${monthName} haftaları">
-          ${weeksHtml}
-        </div>
+        <div class="month-weeks" role="list">${weeksHtml}</div>
       </article>
     `;
   }
   
-  monthsGrid.innerHTML = html;
+  grid.innerHTML=html;
   
-  // Add click handlers for week cards
-  monthsGrid.querySelectorAll('.week-card:not(.empty)').forEach(card => {
-    card.onclick = () => showWeekDetail(card);
-    card.onkeydown = (e) => {
-      if(e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        showWeekDetail(card);
-      }
-    };
+  // Attach week card handlers
+  grid.querySelectorAll('.week-card:not(.empty)').forEach(card=>{
+    card.onclick=()=>showWeekDetail(card);
+    card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showWeekDetail(card);}};
   });
 }
 
 function showWeekDetail(card){
-  const year = parseInt(card.dataset.year);
-  const month = parseInt(card.dataset.month);
-  const week = parseInt(card.dataset.week);
-  const weekStartKey = card.dataset.weekStart;
-  const weekEndKey = card.dataset.weekEnd;
-  
-  selectedWeekStart = new Date(weekStartKey + 'T00:00:00');
-  const weekEnd = new Date(weekEndKey + 'T23:59:59');
-  
-  currentView = 'week';
+  const year=+card.dataset.year, month=+card.dataset.month, week=+card.dataset.week;
+  const wStart=parseLocal(card.dataset.wstart);
+  const wEnd=parseLocal(card.dataset.wend);
+  selectedWeekStart=wStart;
+  currentView='week';
   $('#yearView').classList.add('hidden');
   $('#weekDetailView').classList.remove('hidden');
-  
-  renderWeekDetail(selectedWeekStart, weekEnd, year, month, week);
+  renderWeekDetail(wStart,wEnd,year,month,week);
 }
 
-function renderWeekDetail(weekStart, weekEnd, year, month, weekIndex){
-  const weekDetail = $('#weekDetail');
-  const today = new Date();
-  const todayKey = key(today);
+function renderWeekDetail(wStart,wEnd,year,month,weekIdx){
+  const detail=$('#weekDetail');
+  const today=todayDate();
+  const todayK=todayKey();
   
-  // Calculate week stats
-  let totalPomo = 0, totalMin = 0, daysWithData = 0;
-  const daysData = [];
+  let totalPomo=0, totalMin=0, daysWithData=0;
+  const daysData=[];
   
-  for(let i = 0; i < 7; i++){
-    const d = new Date(weekStart);
-    d.setDate(weekStart.getDate() + i);
-    const k = key(d);
-    const e = S.log[k] || {n: 0};
-    const dayMin = e.n * S.cfg.pomo;
-    if(e.n > 0){
-      totalPomo += e.n;
-      totalMin += dayMin;
-      daysWithData++;
-    }
-    daysData.push({
-      name: DAYS[d.getDay()],
-      date: d,
-      count: e.n,
-      minutes: dayMin,
-      isToday: k === todayKey,
-      key: k
-    });
+  for(let i=0;i<7;i++){
+    const d=addDays(wStart,i);
+    const k=localKey(d);
+    const e=S.log[k]||{n:0};
+    const mins=e.n*S.cfg.pomo;
+    if(e.n>0){totalPomo+=e.n; totalMin+=mins; daysWithData++;}
+    daysData.push({name:DAYS[d.getDay()],date:d,count:e.n,minutes:mins,isToday:k===todayK,key:k});
   }
   
-  const avg = daysWithData > 0 ? Math.round(totalMin / daysWithData) : 0;
-  const maxCount = Math.max(1, ...daysData.map(d => d.count));
+  const avg=daysWithData?Math.round(totalMin/daysWithData):0;
+  const maxCount=Math.max(1,...daysData.map(d=>d.count));
   
-  // Build day bars
-  let barsHtml = '';
-  daysData.forEach(day => {
-    const heightPct = Math.round((day.count / maxCount) * 70) || 3;
-    const displayMinutes = day.minutes >= 60 ? Math.floor(day.minutes/60) + ' sa ' + (day.minutes%60) + ' dk' : day.minutes + ' dk';
-    const tooltipText = `${day.name} ${day.date.getDate()} ${MONTHS[month].slice(0,3)}: ${day.count} pomodoro (${displayMinutes})`;
-    
-    barsHtml += `
-      <div class="day-bar${day.count === 0 ? ' z' : ''}${day.isToday ? ' today' : ''}" 
-           data-date="${day.key}"
-           data-count="${day.count}"
-           data-minutes="${day.minutes}">
-        <span class="day-bar-value">${day.count || ''}</span>
-        <span class="day-bar-graph" style="height:${heightPct}%"></span>
+  let barsHtml='';
+  daysData.forEach(day=>{
+    const h=Math.round((day.count/maxCount)*70)||3;
+    const dm=day.minutes>=60?`${Math.floor(day.minutes/60)} sa ${day.minutes%60} dk`:day.minutes+' dk';
+    const tip=`${day.name} ${day.date.getDate()} ${MONTHS[month].slice(0,3)}: ${day.count} 🍅 (${dm})`;
+    barsHtml+=`
+      <div class="day-bar${day.count===0?' z':''}${day.isToday?' today':''}" data-date="${day.key}">
+        <span class="day-bar-value">${day.count||''}</span>
+        <span class="day-bar-graph" style="height:${h}%"></span>
         <span class="day-bar-label">${day.name}</span>
-        <span class="day-tooltip">${tooltipText}</span>
+        <span class="day-tooltip">${tip}</span>
       </div>
     `;
   });
   
-  weekDetail.innerHTML = `
+  detail.innerHTML=`
     <header class="week-detail-header">
-      <span class="week-detail-title">Hafta ${weekIndex + 1} · ${weekStart.getDate()} - ${weekEnd.getDate()} ${MONTHS[month]} ${year}</span>
+      <span class="week-detail-title">Hafta ${weekIdx+1} · ${wStart.getDate()}-${wEnd.getDate()} ${MONTHS[month]} ${year}</span>
       <button class="week-detail-close" id="closeWeekDetail" aria-label="Kapat">×</button>
     </header>
     <div class="week-detail-stats">
       <div class="week-detail-stat"><b>${totalPomo}</b><span>Pomodoro</span></div>
-      <div class="week-detail-stat"><b>${totalMin >= 60 ? Math.floor(totalMin/60) + ' sa ' + (totalMin%60) + ' dk' : totalMin + ' dk'}</b><span>Odak Süresi</span></div>
+      <div class="week-detail-stat"><b>${totalMin>=60?Math.floor(totalMin/60)+' sa '+(totalMin%60)+' dk':totalMin+' dk'}</b><span>Odak Süresi</span></div>
       <div class="week-detail-stat"><b>${avg}</b><span>Günlük Ort.</span></div>
     </div>
-    <div class="day-bars" id="dayBars" role="img" aria-label="Haftanın günlük pomodoro sayıları">
-      ${barsHtml}
-    </div>
+    <div class="day-bars" role="img" aria-label="Günlük pomodoro">${barsHtml}</div>
   `;
-  
-  $('#closeWeekDetail').onclick = () => {
-    currentView = 'year';
-    $('#weekDetailView').classList.add('hidden');
-    $('#yearView').classList.remove('hidden');
-  };
+  $('#closeWeekDetail').onclick=closeWeekDetail;
 }
 
-// Navigation
-$('#prevYear').onclick = () => {
-  currentYear--;
-  currentView = 'year';
+function closeWeekDetail(){
+  currentView='year';
   $('#weekDetailView').classList.add('hidden');
   $('#yearView').classList.remove('hidden');
-  render();
-};
+}
 
-$('#nextYear').onclick = () => {
-  currentYear++;
-  currentView = 'year';
-  $('#weekDetailView').classList.add('hidden');
-  $('#yearView').classList.remove('hidden');
-  render();
-};
+// --- Navigation ---
+$('#prevYear').onclick=()=>{currentYear--;closeWeekDetail();render();};
+$('#nextYear').onclick=()=>{currentYear++;closeWeekDetail();render();};
+$('#backToYear').onclick=closeWeekDetail;
 
-$('#backToYear').onclick = () => {
-  currentView = 'year';
-  $('#weekDetailView').classList.add('hidden');
-  $('#yearView').classList.remove('hidden');
-};
-
-// Timer logic
+// --- Timer logic ---
 function setMode(m,reset=true){
   S.t.mode=m;
   S.t.left=dur(m);
@@ -485,17 +451,20 @@ function tick(){
   if(S.t.left<=0){
     S.t.running=false;
     S.t.total++;
-    const k=key(new Date());
+    const k=todayKey();
     S.log[k]={n:(S.log[k]||{n:0}).n+1};
     const next=S.t.mode==='pomo'?(S.t.total%S.cfg.every===0?'long':'short'):'pomo';
-    if((S.t.mode==='pomo'&&S.cfg.autoB)||(S.t.mode!=='pomo'&&S.cfg.autoP)){S.t.mode=next;S.t.left=dur(next);S.t.running=true}
-    else{S.t.mode=next;S.t.left=dur(next)}
+    if((S.t.mode==='pomo'&&S.cfg.autoB)||(S.t.mode!=='pomo'&&S.cfg.autoP)){
+      S.t.mode=next;S.t.left=dur(next);S.t.running=true;
+    }else{
+      S.t.mode=next;S.t.left=dur(next);
+    }
     beep();notify(S.t.mode==='pomo'?'Mola bitti, odaklan!':'Odaklanma bitti, mola!');S.save()
   }
   render();
 }
-function start(){if(S.t.left<=0)return;S.t.running=true;unlock();S.save();render()}
-function pause(){S.t.running=false;S.save();render()}
+function start(){if(S.t.left<=0)return;S.t.running=true;unlock();S.save();render();}
+function pause(){S.t.running=false;S.save();render();}
 function beep(){
   if(!S.cfg.vol)return;
   const ctx=new(window.AudioContext||window.webkitAudioContext)();
@@ -503,37 +472,60 @@ function beep(){
   o.type='sine';o.frequency.value=880;g.gain.value=S.cfg.vol;
   o.connect(g).connect(ctx.destination);o.start();o.stop(ctx.currentTime+.5);
 }
-function notify(t){if('Notification'in window&&Notification.permission==='granted'&&S.cfg.push)new Notification('Odak',{body:t})}
-function unlock(){if('AudioContext'in window){const c=new AudioContext();c.resume()}}
-function lock(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission()}
+function notify(t){if('Notification'in window&&Notification.permission==='granted'&&S.cfg.push)new Notification('Odak',{body:t});}
+function unlock(){try{const c=new(window.AudioContext||window.webkitAudioContext)();c.resume()}catch{}}
+function lock(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
 
-// Settings
-$('#openSet').onclick=()=>{
-  ['pomo','short','long','every'].forEach(k=>$('#c_'+k).value=S.cfg[k]);
-  $('#c_autoB').checked=S.cfg.autoB;$('#c_autoP').checked=S.cfg.autoP;$('#c_vol').value=S.cfg.vol;$('#c_push').checked=S.cfg.push;
-  $('#dlg').showModal();
-};
-$('#closeSet').onclick=()=>$('#dlg').close();
-$('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')e.target.close()});
-['pomo','short','long','every'].forEach(k=>$('#c_'+k).onchange=e=>{
-  const v=Math.max(1,Math.min(120,parseInt(e.target.value)||DEF[k]));
-  S.cfg[k]=v;e.target.value=v;
-  if(!S.t.running&&k===S.t.mode)S.t.left=dur(k);
-  save();render();
-});
-$('#c_autoB').onchange=e=>{S.cfg.autoB=e.target.checked;save()};
-$('#c_autoP').onchange=e=>{S.cfg.autoP=e.target.checked;save()};
-$('#c_vol').oninput=e=>{S.cfg.vol=+e.target.value;save()};
-$('#c_push').onchange=e=>{S.cfg.push=e.target.checked;save();if(e.target.checked)initPush()};
-$('#test').onclick=()=>{unlock();if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();beep()};
-
-function save(){S.save()}
-
-function initPush(){
-  // Placeholder for push notification initialization
-  console.log('Push notification init requested');
+// --- Auth (Google Sign-In placeholder) ---
+function initAuth(){
+  $('#loginBtn').onclick=()=>{
+    // Placeholder: replace with real Google Identity Services
+    const name=prompt('İsim girin (demo):')||'Demo Kullanıcı';
+    S.user={name,email:name.toLowerCase().replace(/\s+/g,'.')+'@demo.local'};
+    S.save();renderAuth();
+  };
+  $('#logoutBtn').onclick=()=>{S.user=null;S.save();renderAuth();};
 }
 
+// --- Settings ---
+function openSettings(){
+  ['pomo','short','long','every'].forEach(k=>$('#c_'+k).value=S.cfg[k]);
+  $('#c_autoB').checked=S.cfg.autoB;
+  $('#c_autoP').checked=S.cfg.autoP;
+  $('#c_vol').value=S.cfg.vol;
+  $('#c_push').checked=S.cfg.push;
+  $('#dlg').showModal();
+}
+function closeSettings(){$('#dlg').close();}
+function bindSettings(){
+  ['pomo','short','long','every'].forEach(k=>{
+    $('#c_'+k).onchange=e=>{
+      let v=parseInt(e.target.value)||DEF[k];
+      v=Math.max(1,Math.min(k==='every'?12:120,v));
+      S.cfg[k]=v;e.target.value=v;
+      if(!S.t.running&&k===S.t.mode)S.t.left=dur(k);
+      S.save();render();
+    };
+  });
+  $('#c_autoB').onchange=e=>{S.cfg.autoB=e.target.checked;S.save();};
+  $('#c_autoP').onchange=e=>{S.cfg.autoP=e.target.checked;S.save();};
+  $('#c_vol').oninput=e=>{S.cfg.vol=+e.target.value;S.save();};
+  $('#c_push').onchange=e=>{S.cfg.push=e.target.checked;S.save();if(e.target.checked)lock();};
+  $('#test').onclick=()=>{unlock();lock();beep();};
+}
+$('#openSet').onclick=openSettings;
+$('#closeSet').onclick=closeSettings;
+$('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')closeSettings();});
+
+// --- Main button bindings ---
+$('#go').onclick=()=>{S.t.running?pause():start();};
+$('#reset').onclick=()=>setMode(S.t.mode,true);
+$('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
+$$('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m,false));
+
+// --- Init ---
+initAuth();
+bindSettings();
 render();
 setInterval(tick,250);
 lock();
