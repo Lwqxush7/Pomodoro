@@ -51,7 +51,30 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f0}
 .row input[type=number]{width:70px;padding:8px;border:0;background:#efefef;border-radius:6px;text-align:center}
 .tt{font-size:13px;color:#777;margin:14px 0 0}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.sum-head{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .nav-btn{font-size:22px;padding:6px 12px;line-height:1;min-width:44px}
+  .month-select-wrap{position:relative}
+  #monthSelect{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:8px 36px 8px 12px;font-size:15px;font-weight:500;cursor:pointer;appearance:none;min-width:180px}
+  #monthSelect:hover{background:rgba(255,255,255,.26)}
+  #monthSelect option{background:#2b59c3;color:#fff}
+  .weeks{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+  .week-card{background:rgba(255,255,255,.12);border-radius:12px;padding:16px 12px;text-align:center;cursor:pointer;transition:transform .15s,background .15s;border:1px solid transparent}
+  .week-card:hover{background:rgba(255,255,255,.2);transform:translateY(-2px)}
+  .week-card.current{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.4)}
+  .week-card.empty{opacity:.4;cursor:default}
+  .week-card.empty:hover{transform:none;background:rgba(255,255,255,.12)}
+  .week-label{font-size:13px;opacity:.85;margin-bottom:6px}
+  .week-total{font-size:24px;font-weight:800;line-height:1}
+  .week-range{font-size:11px;opacity:.7;margin-top:4px}
+  .back-btn{width:100%;margin-bottom:16px;justify-content:flex-start;gap:8px}
+  .week-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center;margin-bottom:14px}
+  .week-stat{background:rgba(255,255,255,.12);border-radius:12px;padding:12px 6px}
+  .week-stat b{display:block;font-size:22px;font-weight:800}
+  .week-stat span{font-size:12px;opacity:.8}
+  .bar.today i{background:#ffd600}
+  .hidden{display:none!important}
+  .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
@@ -82,12 +105,27 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 
   <section class="sum" aria-labelledby="ozet">
     <h2 id="ozet">Özet</h2>
-    <div class="stats">
-      <div class="stat"><b id="sToday">0</b><span>bugün pomodoro</span></div>
-      <div class="stat"><b id="sMin">0 dk</b><span>bugün odak</span></div>
-      <div class="stat"><b id="sWeek">0</b><span>son 7 gün</span></div>
+    <div class="sum-head">
+      <button class="hbtn nav-btn" id="prevMonth" aria-label="Önceki ay">‹</button>
+      <div class="month-select-wrap">
+        <label for="monthSelect" class="visually-hidden">Ay seçin</label>
+        <select id="monthSelect" aria-label="Ay seçin"></select>
+      </div>
+      <button class="hbtn nav-btn" id="nextMonth" aria-label="Sonraki ay">›</button>
     </div>
-    <div class="bars" id="bars" role="img" aria-label="Son 7 günün pomodoro sayıları"></div>
+    <div class="stats" id="monthStats">
+      <div class="stat"><b id="sMonthPomo">0</b><span>bu ay pomodoro</span></div>
+      <div class="stat"><b id="sMonthMin">0 dk</b><span>bu ay odak</span></div>
+      <div class="stat"><b id="sMonthAvg">0</b><span>günlük ort.</span></div>
+    </div>
+    <div id="monthView">
+      <div class="weeks" id="weeks" role="list" aria-label="Haftalar"></div>
+    </div>
+    <div id="weekView" class="hidden">
+      <button class="hbtn back-btn" id="backToMonth" aria-label="Aylık görünüme dön">← Ay görünümü</button>
+      <div class="week-stats" id="weekStats"></div>
+      <div class="bars" id="weekBars" role="img" aria-label="Haftanın günlük pomodoro sayıları"></div>
+    </div>
   </section>
 </div>
 
@@ -134,7 +172,11 @@ const cfg=window.ODAK_CONFIG;
 const DEF={pomo:25,short:5,long:15,every:4,autoB:false,autoP:false,vol:.6,push:false};
 const NAMES={pomo:'Odaklanma zamanı!',short:'Kısa mola zamanı!',long:'Uzun mola zamanı!'};
 const DAYS=['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+const MONTHS=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
 const dev=Math.random().toString(36).slice(2);
+let currentMonth=new Date(); currentMonth.setDate(1);
+let currentView='month';
+let selectedWeekStart=null;
 let S={cfg:{...DEF},log:{},t:{mode:'pomo',running:false,endAt:0,left:25*60,count:1,done:0},ts:0,by:''};
 try{const r=JSON.parse(localStorage.getItem('odak'));if(r)S={...S,...r,cfg:{...DEF,...r.cfg}}}catch(e){}
 
@@ -265,6 +307,92 @@ function paintTime(){
   $('#time').textContent=m+':'+s;
   document.title=(S.t.running?m+':'+s+' · ':'')+NAMES[S.t.mode].replace('!','');
 }
+
+function getMonthWeeks(year, month){
+  const firstDay=new Date(year,month,1);
+  const lastDay=new Date(year,month+1,0);
+  const startOffset=(firstDay.getDay()+6)%7;
+  const endOffset=(7-lastDay.getDay())%7;
+  const weeks=[];
+  let weekStart=new Date(firstDay);
+  weekStart.setDate(weekStart.getDate()-startOffset);
+  while(weekStart<=lastDay){
+    const weekEnd=new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate()+6);
+    const days=[];
+    for(let i=0;i<7;i++){
+      const d=new Date(weekStart);
+      d.setDate(weekStart.getDate()+i);
+      days.push(d);
+    }
+    weeks.push({start:new Date(weekStart),end:new Date(weekEnd),days});
+    weekStart.setDate(weekStart.getDate()+7);
+  }
+  return weeks;
+}
+
+function formatMonth(date){
+  return MONTHS[date.getMonth()]+' '+date.getFullYear();
+}
+
+function getAvailableMonths(){
+  const months=new Set();
+  for(const k in S.log){
+    const d=new Date(k);
+    months.add(d.getFullYear()*100+d.getMonth());
+  }
+  const now=new Date();
+  months.add(now.getFullYear()*100+now.getMonth());
+  return Array.from(months).sort((a,b)=>b-a).map(m=>{
+    const y=Math.floor(m/100),mo=m%100;
+    return {value:`${y}-${String(mo+1).padStart(2,'0')}`,label:MONTHS[mo]+' '+y};
+  });
+}
+
+function populateMonthSelect(){
+  const select=$('#monthSelect');
+  const options=getAvailableMonths();
+  const currentVal=`${currentMonth.getFullYear()}-${String(currentMonth.getMonth()+1).padStart(2,'0')}`;
+  select.innerHTML=options.map(o=>`<option value="${o.value}"${o.value===currentVal?' selected':''}>${o.label}</option>`).join('');
+}
+
+function calcMonthStats(year,month){
+  let totalPomo=0,totalMin=0,daysWithData=0;
+  const firstDay=new Date(year,month,1);
+  const lastDay=new Date(year,month+1,0);
+  for(let d=new Date(firstDay);d<=lastDay;d.setDate(d.getDate()+1)){
+    const e=S.log[key(d)];
+    if(e&&e.n>0){
+      totalPomo+=e.n;
+      totalMin+=e.m;
+      daysWithData++;
+    }
+  }
+  return {totalPomo,totalMin,avg:daysWithData?Math.round(totalPomo/daysWithData):0};
+}
+
+function calcWeekStats(weekStart){
+  let totalPomo=0,totalMin=0,daysWithData=0;
+  for(let i=0;i<7;i++){
+    const d=new Date(weekStart);
+    d.setDate(weekStart.getDate()+i);
+    const e=S.log[key(d)];
+    if(e&&e.n>0){
+      totalPomo+=e.n;
+      totalMin+=e.m;
+      daysWithData++;
+    }
+  }
+  return {totalPomo,totalMin,avg:daysWithData?Math.round(totalPomo/daysWithData):0};
+}
+
+function isCurrentWeek(weekStart){
+  const now=new Date();
+  const thisMon=new Date(now);
+  thisMon.setDate(now.getDate()-((now.getDay()+6)%7));
+  return weekStart.getTime()===thisMon.getTime();
+}
+
 function render(){
   document.documentElement.dataset.mode=S.t.mode;
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.m===S.t.mode));
@@ -273,14 +401,92 @@ function render(){
   $('#count').textContent='#'+S.t.count;
   $('#msg').textContent=NAMES[S.t.mode];
   paintTime();
-  const now=new Date(),td=S.log[key(now)]||{n:0,m:0};
-  let week=0,html='',mx=1;const days=[];
-  for(let i=6;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);const e=S.log[key(d)]||{n:0};days.push([DAYS[d.getDay()],e.n]);week+=e.n;mx=Math.max(mx,e.n)}
-  days.forEach(([n,v])=>{html+=`<div class="bar${v?'':' z'}">${v||''}<i style="height:${Math.round(v/mx*70)}%"></i>${n}</div>`});
-  $('#bars').innerHTML=html;
-  $('#sToday').textContent=td.n;
-  $('#sMin').textContent=td.m>=60?Math.floor(td.m/60)+' sa '+(td.m%60)+' dk':td.m+' dk';
-  $('#sWeek').textContent=week;
+
+  populateMonthSelect();
+
+  if(currentView==='month'){
+    renderMonthView();
+  }else{
+    renderWeekView();
+  }
+}
+
+function renderMonthView(){
+  $('#monthView').classList.remove('hidden');
+  $('#weekView').classList.add('hidden');
+  $('#monthStats').classList.remove('hidden');
+
+  const year=currentMonth.getFullYear();
+  const month=currentMonth.getMonth();
+  const weeks=getMonthWeeks(year,month);
+  const stats=calcMonthStats(year,month);
+
+  $('#sMonthPomo').textContent=stats.totalPomo;
+  $('#sMonthMin').textContent=stats.totalMin>=60?Math.floor(stats.totalMin/60)+' sa '+(stats.totalMin%60)+' dk':stats.totalMin+' dk';
+  $('#sMonthAvg').textContent=stats.avg;
+
+  let html='';
+  const todayKey=key(new Date());
+  weeks.forEach(w=>{
+    let weekPomo=0,weekMin=0,hasData=false;
+    w.days.forEach(d=>{
+      const e=S.log[key(d)];
+      if(e){
+        weekPomo+=e.n;
+        weekMin+=e.m;
+        if(e.n>0)hasData=true;
+      }
+    });
+    const isCur=isCurrentWeek(w.start);
+    const label=`${String(w.start.getDate()).padStart(2,'0')}.${String(w.start.getMonth()+1).padStart(2,'0')} - ${String(w.end.getDate()).padStart(2,'0')}.${String(w.end.getMonth()+1).padStart(2,'0')}`;
+    html+=`<div class="week-card${isCur?' current':''}${!hasData?' empty':''}" data-week="${key(w.start)}"${hasData?'':' aria-label="Bu hafta veri yok"'}>
+      <div class="week-label">${isCur?'Bu hafta':label}</div>
+      <div class="week-total">${weekPomo||'—'}</div>
+      <div class="week-range">${weekPomo?'pomodoro':''}</div>
+    </div>`;
+  });
+  $('#weeks').innerHTML=html;
+
+  document.querySelectorAll('.week-card:not(.empty)').forEach(card=>{
+    card.onclick=()=>{
+      selectedWeekStart=new Date(card.dataset.week);
+      currentView='week';
+      render();
+    };
+  });
+}
+
+function renderWeekView(){
+  $('#monthView').classList.add('hidden');
+  $('#weekView').classList.remove('hidden');
+  $('#monthStats').classList.add('hidden');
+
+  const weekEnd=new Date(selectedWeekStart);
+  weekEnd.setDate(selectedWeekStart.getDate()+6);
+  const label=`${String(selectedWeekStart.getDate()).padStart(2,'0')}.${String(selectedWeekStart.getMonth()+1).padStart(2,'0')} - ${String(weekEnd.getDate()).padStart(2,'0')}.${String(weekEnd.getMonth()+1).padStart(2,'0')}`;
+  const stats=calcWeekStats(selectedWeekStart);
+
+  $('#weekStats').innerHTML=`
+    <div class="week-stat"><b>${stats.totalPomo}</b><span>pomodoro</span></div>
+    <div class="week-stat"><b>${stats.totalMin>=60?Math.floor(stats.totalMin/60)+' sa '+(stats.totalMin%60)+' dk':stats.totalMin+' dk'}</b><span>odak süresi</span></div>
+    <div class="week-stat"><b>${stats.avg}</b><span>günlük ort.</span></div>
+  `;
+
+  let html='',mx=1;
+  const days=[];
+  for(let i=0;i<7;i++){
+    const d=new Date(selectedWeekStart);
+    d.setDate(selectedWeekStart.getDate()+i);
+    const e=S.log[key(d)]||{n:0};
+    days.push([DAYS[d.getDay()],e.n,d]);
+    mx=Math.max(mx,e.n);
+  }
+  const todayKey=key(new Date());
+  days.forEach(([n,v,d])=>{
+    const isToday=key(d)===todayKey;
+    html+=`<div class="bar${v?'':' z'}${isToday?' today':''}">${v||''}<i style="height:${Math.round(v/mx*70)}%"></i>${n}${isToday?' ●':''}</div>`;
+  });
+  $('#weekBars').innerHTML=html;
 }
 
 $('#go').onclick=()=>S.t.running?pause():start();
@@ -305,6 +511,27 @@ $('#c_autoP').onchange=e=>{S.cfg.autoP=e.target.checked;save()};
 $('#c_vol').oninput=e=>{S.cfg.vol=+e.target.value;save()};
 $('#c_push').onchange=e=>{S.cfg.push=e.target.checked;save();if(e.target.checked)initPush()};
 $('#test').onclick=()=>{unlock();if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();beep()};
+
+$('#monthSelect').onchange=e=>{
+  const [y,m]=e.target.value.split('-').map(Number);
+  currentMonth=new Date(y,m-1,1);
+  currentView='month';
+  render();
+};
+$('#prevMonth').onclick=()=>{
+  currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-1,1);
+  currentView='month';
+  render();
+};
+$('#nextMonth').onclick=()=>{
+  currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,1);
+  currentView='month';
+  render();
+};
+$('#backToMonth').onclick=()=>{
+  currentView='month';
+  render();
+};
 
 render();
 setInterval(tick,250);
