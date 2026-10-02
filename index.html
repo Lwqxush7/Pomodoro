@@ -1,3 +1,13 @@
+Done! Here's the complete updated `index.html` with all your requested changes:
+
+## Changes Made:
+
+1. **All months in dropdown** (last 3 years including current) - not just months with data
+2. **Capitalized labels**: "Bu Ay Pomodoro", "Bu Ay Odak", "Günlük Ort." / "Pomodoro", "Odak Süresi", "Günlük Ort."
+3. **Simple week labels**: "1. Hafta", "2. Hafta", "3. Hafta", "4. Hafta" (5/6 if needed) + "Bu hafta" for current week
+4. **Clean week view**: Simple daily bars like original (Paz, Pzt, Sal, Çar, Per, Cum, Cmt) with yellow highlight for today
+
+```html
 <!DOCTYPE html>
 <html lang="tr" data-mode="pomo">
 <head>
@@ -114,9 +124,9 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
       <button class="hbtn nav-btn" id="nextMonth" aria-label="Sonraki ay">›</button>
     </div>
     <div class="stats" id="monthStats">
-      <div class="stat"><b id="sMonthPomo">0</b><span>bu ay pomodoro</span></div>
-      <div class="stat"><b id="sMonthMin">0 dk</b><span>bu ay odak</span></div>
-      <div class="stat"><b id="sMonthAvg">0</b><span>günlük ort.</span></div>
+      <div class="stat"><b id="sMonthPomo">0</b><span>Bu Ay Pomodoro</span></div>
+      <div class="stat"><b id="sMonthMin">0 dk</b><span>Bu Ay Odak</span></div>
+      <div class="stat"><b id="sMonthAvg">0</b><span>Günlük Ort.</span></div>
     </div>
     <div id="monthView">
       <div class="weeks" id="weeks" role="list" aria-label="Haftalar"></div>
@@ -336,17 +346,18 @@ function formatMonth(date){
 }
 
 function getAvailableMonths(){
-  const months=new Set();
-  for(const k in S.log){
-    const d=new Date(k);
-    months.add(d.getFullYear()*100+d.getMonth());
-  }
   const now=new Date();
-  months.add(now.getFullYear()*100+now.getMonth());
-  return Array.from(months).sort((a,b)=>b-a).map(m=>{
-    const y=Math.floor(m/100),mo=m%100;
-    return {value:`${y}-${String(mo+1).padStart(2,'0')}`,label:MONTHS[mo]+' '+y};
-  });
+  const currentYear=now.getFullYear();
+  const currentMonth=now.getMonth();
+  const months=[];
+  for(let y=currentYear;y>=currentYear-2;y--){
+    const startMo=y===currentYear?currentMonth:11;
+    const endMo=y===currentYear-2?0:0;
+    for(let m=startMo;m>=endMo;m--){
+      months.push({value:`${y}-${String(m+1).padStart(2,'0')}`,label:MONTHS[m]+' '+y});
+    }
+  }
+  return months;
 }
 
 function populateMonthSelect(){
@@ -426,8 +437,7 @@ function renderMonthView(){
   $('#sMonthAvg').textContent=stats.avg;
 
   let html='';
-  const todayKey=key(new Date());
-  weeks.forEach(w=>{
+  weeks.forEach((w,idx)=>{
     let weekPomo=0,weekMin=0,hasData=false;
     w.days.forEach(d=>{
       const e=S.log[key(d)];
@@ -438,9 +448,9 @@ function renderMonthView(){
       }
     });
     const isCur=isCurrentWeek(w.start);
-    const label=`${String(w.start.getDate()).padStart(2,'0')}.${String(w.start.getMonth()+1).padStart(2,'0')} - ${String(w.end.getDate()).padStart(2,'0')}.${String(w.end.getMonth()+1).padStart(2,'0')}`;
+    const weekNum=idx+1;
     html+=`<div class="week-card${isCur?' current':''}${!hasData?' empty':''}" data-week="${key(w.start)}"${hasData?'':' aria-label="Bu hafta veri yok"'}>
-      <div class="week-label">${isCur?'Bu hafta':label}</div>
+      <div class="week-label">${isCur?'Bu hafta':weekNum+'. Hafta'}</div>
       <div class="week-total">${weekPomo||'—'}</div>
       <div class="week-range">${weekPomo?'pomodoro':''}</div>
     </div>`;
@@ -461,15 +471,12 @@ function renderWeekView(){
   $('#weekView').classList.remove('hidden');
   $('#monthStats').classList.add('hidden');
 
-  const weekEnd=new Date(selectedWeekStart);
-  weekEnd.setDate(selectedWeekStart.getDate()+6);
-  const label=`${String(selectedWeekStart.getDate()).padStart(2,'0')}.${String(selectedWeekStart.getMonth()+1).padStart(2,'0')} - ${String(weekEnd.getDate()).padStart(2,'0')}.${String(weekEnd.getMonth()+1).padStart(2,'0')}`;
   const stats=calcWeekStats(selectedWeekStart);
 
   $('#weekStats').innerHTML=`
-    <div class="week-stat"><b>${stats.totalPomo}</b><span>pomodoro</span></div>
-    <div class="week-stat"><b>${stats.totalMin>=60?Math.floor(stats.totalMin/60)+' sa '+(stats.totalMin%60)+' dk':stats.totalMin+' dk'}</b><span>odak süresi</span></div>
-    <div class="week-stat"><b>${stats.avg}</b><span>günlük ort.</span></div>
+    <div class="week-stat"><b>${stats.totalPomo}</b><span>Pomodoro</span></div>
+    <div class="week-stat"><b>${stats.totalMin>=60?Math.floor(stats.totalMin/60)+' sa '+(stats.totalMin%60)+' dk':stats.totalMin+' dk'}</b><span>Odak Süresi</span></div>
+    <div class="week-stat"><b>${stats.avg}</b><span>Günlük Ort.</span></div>
   `;
 
   let html='',mx=1;
@@ -484,7 +491,7 @@ function renderWeekView(){
   const todayKey=key(new Date());
   days.forEach(([n,v,d])=>{
     const isToday=key(d)===todayKey;
-    html+=`<div class="bar${v?'':' z'}${isToday?' today':''}">${v||''}<i style="height:${Math.round(v/mx*70)}%"></i>${n}${isToday?' ●':''}</div>`;
+    html+=`<div class="bar${v?'':' z'}${isToday?' today':''}">${v||''}<i style="height:${Math.round(v/mx*70)}%"></i>${n}</div>`;
   });
   $('#weekBars').innerHTML=html;
 }
@@ -539,3 +546,4 @@ lock();
 </script>
 </body>
 </html>
+```
