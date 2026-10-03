@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Odak — Pomodoro</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -22,14 +23,17 @@ const app = initializeApp(window.firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// Global expose - ana script erişebilsin
 window.firebaseAuth = auth;
 window.googleProvider = provider;
 window.firebaseSignInWithPopup = signInWithPopup;
 window.firebaseSignOut = signOut;
 window.firebaseOnAuthStateChanged = onAuthStateChanged;
 
+// Firebase hazır olduğunda global event tetikle
 window.dispatchEvent(new Event('firebase-ready'));
 </script>
+<!-- OneSignal SDK -->
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" async></script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#2b59c3}
@@ -66,18 +70,25 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .stat{background:rgba(255,255,255,.12);border-radius:12px;padding:14px 6px}
 .stat b{display:block;font-size:28px;font-weight:800}
 .stat span{font-size:13px;opacity:.8}
+
+/* Year/Month Navigation */
 .sum-head{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
 .nav-btn{font-size:22px;padding:6px 12px;line-height:1;min-width:44px}
 .year-display{font-size:18px;font-weight:700;min-width:80px;text-align:center}
+
+/* Month Grid - 3x4 layout for 12 months */
 .months-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 @media (max-width: 700px){.months-grid{grid-template-columns:repeat(2,1fr)}}
 @media (max-width: 480px){.months-grid{grid-template-columns:1fr}}
+
 .month-card{background:rgba(255,255,255,.12);border-radius:12px;padding:12px;transition:transform .15s,background .15s;border:1px solid transparent}
 .month-card:hover{background:rgba(255,255,255,.2);transform:translateY(-2px)}
 .month-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.15)}
 .month-name{font-size:16px;font-weight:700}
 .month-stats{display:flex;gap:12px;font-size:11px;opacity:.8}
 .month-weeks{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+
+/* Week Cards - 4 per month in 2x2 grid */
 .week-card{background:rgba(255,255,255,.08);border-radius:8px;padding:8px 6px;text-align:center;cursor:pointer;transition:transform .15s,background .15s;border:1px solid transparent;position:relative}
 .week-card:hover{background:rgba(255,255,255,.18);transform:translateY(-2px);z-index:10}
 .week-card.current{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.4)}
@@ -86,6 +97,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .week-label{font-size:11px;opacity:.85;margin-bottom:4px}
 .week-total{font-size:18px;font-weight:800;line-height:1}
 .week-range{font-size:10px;opacity:.7;margin-top:2px}
+
+/* Week Detail View */
 .week-detail{background:rgba(255,255,255,.12);border-radius:12px;padding:16px;margin-top:16px;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .week-detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.15)}
@@ -96,6 +109,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .week-detail-stat{background:rgba(255,255,255,.12);border-radius:12px;padding:12px 6px}
 .week-detail-stat b{display:block;font-size:22px;font-weight:800}
 .week-detail-stat span{font-size:12px;opacity:.8}
+
+/* Day Bars Graph */
 .day-bars{display:flex;align-items:flex-end;justify-content:space-between;gap:6px;height:120px;background:rgba(255,255,255,.08);border-radius:12px;padding:12px 8px 8px}
 .day-bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:10px;gap:3px;cursor:default}
 .day-bar-value{font-weight:700;font-size:11px;white-space:nowrap}
@@ -103,9 +118,13 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .day-bar:hover .day-bar-graph{opacity:1}
 .day-bar.today .day-bar-graph{background:linear-gradient(180deg,#ffd600 0%,#ffb300 100%)}
 .day-bar-label{font-size:10px;opacity:.8;white-space:nowrap}
+
+/* Tooltip for day detail */
 .day-tooltip{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.9);color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;white-space:nowrap;z-index:100;pointer-events:none;opacity:0;transition:opacity .15s;margin-bottom:6px}
 .day-bar:hover .day-tooltip{opacity:1}
 .day-bar{position:relative}
+
+/* Settings Dialog - Improved */
 dialog{border:0;border-radius:14px;padding:0;width:min(400px,92vw);color:#222;background:#fff;box-shadow:0 20px 40px rgba(0,0,0,.2)}
 dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
 .dh{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e6e6e6}
@@ -126,6 +145,8 @@ dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
 .setting-row .switch::after{content:'';position:absolute;top:2px;left:2px;width:22px;height:22px;background:#fff;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:left .15s}
 .setting-row .switch.on::after{left:20px}
 .tt{font-size:13px;color:#777;margin:16px 0 0;line-height:1.5}
+
+/* Hidden utility */
 .hidden{display:none!important}
 .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -133,94 +154,607 @@ dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
 </head>
 <body>
 <div class="wrap">
-<header>
-<div class="logo">Odak</div>
-<div class="auth" id="auth"><span class="chip" id="userChip" style="display:none"><span id="userAvatar" class="avatar"></span><span id="userName"></span></span><button class="hbtn" id="loginBtn">Google ile giriş yap</button><button class="hbtn" id="logoutBtn" style="display:none">Çıkış</button></div>
-<button class="hbtn" id="openSet">Ayarlar</button>
-</header>
-<main class="card">
-<div class="tabs" role="tablist"><button class="tab" data-m="pomo">Pomodoro</button><button class="tab" data-m="short">Kısa Mola</button><button class="tab" data-m="long">Uzun Mola</button></div>
-<div class="time" id="time" aria-live="off">25:00</div>
-<button class="go" id="go">BAŞLAT</button>
-<div class="side"><button class="small" id="reset">Sıfırla</button><button class="small" id="skip">Atla</button></div>
-<div class="count" id="count">#1</div>
-<div class="msg" id="msg">Odaklanma zamanı!</div>
-</main>
-<section class="sum" aria-labelledby="ozet">
-<h2 id="ozet">Özet</h2>
-<div class="sum-head"><button class="hbtn nav-btn" id="prevYear" aria-label="Önceki yıl">‹</button><div class="year-display" id="yearDisplay">2026</div><button class="hbtn nav-btn" id="nextYear" aria-label="Sonraki yıl">›</button></div>
-<div class="stats" id="yearStats"><div class="stat"><b id="sYearPomo">0</b><span>Bu Yıl Pomodoro</span></div><div class="stat"><b id="sYearMin">0 dk</b><span>Bu Yıl Odak</span></div><div class="stat"><b id="sYearAvg">0</b><span>Günlük Ort.</span></div></div>
-<div id="yearView"><div class="months-grid" id="monthsGrid" role="list" aria-label="Aylar"></div></div>
-<div id="weekDetailView" class="hidden"><button class="hbtn back-btn" id="backToYear" aria-label="Yıllık görünüme dön">← Yıl görünümü</button><div class="week-detail" id="weekDetail"></div></div>
-</section>
+  <header>
+    <div class="logo">Odak</div>
+    <div class="auth" id="auth">
+      <span class="chip" id="userChip" style="display:none"><span id="userAvatar" class="avatar"></span><span id="userName"></span></span>
+      <button class="hbtn" id="loginBtn">Google ile giriş yap</button>
+      <button class="hbtn" id="logoutBtn" style="display:none">Çıkış</button>
+    </div>
+    <button class="hbtn" id="openSet">Ayarlar</button>
+  </header>
+
+  <main class="card">
+    <div class="tabs" role="tablist">
+      <button class="tab" data-m="pomo">Pomodoro</button>
+      <button class="tab" data-m="short">Kısa Mola</button>
+      <button class="tab" data-m="long">Uzun Mola</button>
+    </div>
+    <div class="time" id="time" aria-live="off">25:00</div>
+    <button class="go" id="go">BAŞLAT</button>
+    <div class="side">
+      <button class="small" id="reset">Sıfırla</button>
+      <button class="small" id="skip">Atla</button>
+    </div>
+    <div class="count" id="count">#1</div>
+    <div class="msg" id="msg">Odaklanma zamanı!</div>
+  </main>
+
+  <section class="sum" aria-labelledby="ozet">
+    <h2 id="ozet">Özet</h2>
+    <div class="sum-head">
+      <button class="hbtn nav-btn" id="prevYear" aria-label="Önceki yıl">‹</button>
+      <div class="year-display" id="yearDisplay">2026</div>
+      <button class="hbtn nav-btn" id="nextYear" aria-label="Sonraki yıl">›</button>
+    </div>
+    <div class="stats" id="yearStats">
+      <div class="stat"><b id="sYearPomo">0</b><span>Bu Yıl Pomodoro</span></div>
+      <div class="stat"><b id="sYearMin">0 dk</b><span>Bu Yıl Odak</span></div>
+      <div class="stat"><b id="sYearAvg">0</b><span>Günlük Ort.</span></div>
+    </div>
+    <div id="yearView">
+      <div class="months-grid" id="monthsGrid" role="list" aria-label="Aylar"></div>
+    </div>
+    <div id="weekDetailView" class="hidden">
+      <button class="hbtn back-btn" id="backToYear" aria-label="Yıllık görünüme dön">← Yıl görünümü</button>
+      <div class="week-detail" id="weekDetail"></div>
+    </div>
+  </section>
 </div>
+
 <dialog id="dlg">
-<div class="dh"><b>Ayarlar</b><button id="closeSet" aria-label="Kapat">×</button></div>
-<div class="db">
-<div class="setting-row"><span class="setting-label">Pomodoro (dk)</span><div class="setting-control"><input type="number" min="1" max="120" id="c_pomo"></div></div>
-<div class="setting-row"><span class="setting-label">Kısa mola (dk)</span><div class="setting-control"><input type="number" min="1" max="60" id="c_short"></div></div>
-<div class="setting-row"><span class="setting-label">Uzun mola (dk)</span><div class="setting-control"><input type="number" min="1" max="60" id="c_long"></div></div>
-<div class="setting-row"><span class="setting-label">Uzun mola aralığı</span><div class="setting-control"><input type="number" min="2" max="12" id="c_every"></div></div>
-<div class="setting-row"><span class="setting-label">Molaları otomatik başlat</span><div class="setting-control"><label class="switch" id="sw_autoB"><input type="checkbox" id="c_autoB"></label></div></div>
-<div class="setting-row"><span class="setting-label">Pomodoroları otomatik başlat</span><div class="setting-control"><label class="switch" id="sw_autoP"><input type="checkbox" id="c_autoP"></label></div></div>
-<div class="setting-row"><span class="setting-label">Alarm sesi</span><div class="setting-control"><input type="range" min="0" max="1" step="0.05" id="c_vol"></div></div>
-<div class="setting-row"><span class="setting-label">Kapalıyken bildirim (OneSignal)</span><div class="setting-control"><label class="switch" id="sw_push"><input type="checkbox" id="c_push"></label></div></div>
-<div class="setting-row"><span class="setting-label">Alarmı dene</span><div class="setting-control"><button class="btn-test" id="test" type="button">Çal</button></div></div>
-<p class="tt">"Kapalıyken bildirim" OneSignal push izni ister. Ses için tarayıcı izni gerekir.</p>
-</div>
+  <div class="dh"><b>Ayarlar</b><button id="closeSet" aria-label="Kapat">×</button></div>
+  <div class="db">
+    <div class="setting-row">
+      <span class="setting-label">Pomodoro (dk)</span>
+      <div class="setting-control"><input type="number" min="1" max="120" id="c_pomo"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Kısa mola (dk)</span>
+      <div class="setting-control"><input type="number" min="1" max="60" id="c_short"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Uzun mola (dk)</span>
+      <div class="setting-control"><input type="number" min="1" max="60" id="c_long"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Uzun mola aralığı</span>
+      <div class="setting-control"><input type="number" min="2" max="12" id="c_every"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Molaları otomatik başlat</span>
+      <div class="setting-control"><label class="switch" id="sw_autoB"><input type="checkbox" id="c_autoB"></label></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Pomodoroları otomatik başlat</span>
+      <div class="setting-control"><label class="switch" id="sw_autoP"><input type="checkbox" id="c_autoP"></label></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Alarm sesi</span>
+      <div class="setting-control"><input type="range" min="0" max="1" step="0.05" id="c_vol"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Kapalıyken bildirim (OneSignal)</span>
+      <div class="setting-control"><label class="switch" id="sw_push"><input type="checkbox" id="c_push"></label></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Alarmı dene</span>
+      <div class="setting-control"><button class="btn-test" id="test" type="button">Çal</button></div>
+    </div>
+    <p class="tt">"Kapalıyken bildirim" OneSignal push izni ister. Ses için tarayıcı izni gerekir.</p>
+  </div>
 </dialog>
+
 <script>
 const DEF={pomo:25,short:5,long:15,every:4,autoB:true,autoP:false,vol:.7,push:false};
 const DAYS=['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
 const MONTHS=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+
 const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
-function localKey(d){const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
-function parseLocal(key){const [y,m,d]=key.split('-').map(Number);return new Date(y,m-1,d);}
-function addDays(d,n){const nd=new Date(d);nd.setDate(d.getDate()+n);return nd;}
-let currentYear=new Date().getFullYear();
-let currentView='year';
-let selectedWeekStart=null;
-const S={cfg:{...DEF},t:{mode:'pomo',left:DEF.pomo*60,running:false,total:0,lastUpdate:0},log:{},user:null,onesignalId:null,load(){try{const raw=localStorage.getItem('pomo_v2');if(!raw)return;const d=JSON.parse(raw);if(d.cfg)this.cfg={...DEF,...d.cfg};if(d.t)this.t={...this.t,...d.t};if(d.log)this.log=d.log;if(d.user)this.user=d.user;if(d.onesignalId)this.onesignalId=d.onesignalId}catch(e){console.error('Load error',e)}this.t.left=this.t.running?this.t.left:dur(this.t.mode);this.t.lastUpdate=this.t.lastUpdate||Date.now();},save(){localStorage.setItem('pomo_v2',JSON.stringify({cfg:this.cfg,t:this.t,log:this.log,user:this.user,onesignalId:this.onesignalId}));}};
+
+// --- Date helpers (local timezone safe) ---
+function localKey(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function parseLocal(key){
+  const [y,m,d]=key.split('-').map(Number);
+  return new Date(y,m-1,d);
+}
+function startOfWeek(d){
+  const day=d.getDay();
+  const diff=(day+6)%7;
+  const nd=new Date(d);
+  nd.setDate(d.getDate()-diff);
+  nd.setHours(0,0,0,0);
+  return nd;
+}
+function addDays(d,n){
+  const nd=new Date(d);
+  nd.setDate(d.getDate()+n);
+  return nd;
+}
+
+// --- State ---
+let currentYear = new Date().getFullYear();
+let currentView = 'year';
+let selectedWeekStart = null;
+
+// --- Storage ---
+const S={
+  cfg:{...DEF},
+  t:{mode:'pomo',left:DEF.pomo*60,running:false,total:0,lastUpdate:0},
+  log:{},
+  user:null,
+  onesignalId:null,
+  load(){
+    try{
+      const raw=localStorage.getItem('pomo_v2');
+      if(!raw) return;
+      const d=JSON.parse(raw);
+      if(d.cfg) this.cfg={...DEF,...d.cfg};
+      if(d.t) this.t={...this.t,...d.t};
+      if(d.log) this.log=d.log;
+      if(d.user) this.user=d.user;
+      if(d.onesignalId) this.onesignalId=d.onesignalId;
+    }catch(e){console.error('Load error',e)}
+    this.t.left=this.t.running?this.t.left:dur(this.t.mode);
+    this.t.lastUpdate=this.t.lastUpdate||Date.now();
+  },
+  save(){
+    localStorage.setItem('pomo_v2',JSON.stringify({cfg:this.cfg,t:this.t,log:this.log,user:this.user,onesignalId:this.onesignalId}));
+  }
+};
 S.load();
+
+// --- Core helpers ---
 function dur(m){return S.cfg[m]*60}
-function fmt(s){const m=Math.floor(s/60).toString().padStart(2,'0');const sec=(s%60).toString().padStart(2,'0');return `${m}:${sec}`;}
+function fmt(s){
+  const m=Math.floor(s/60).toString().padStart(2,'0');
+  const sec=(s%60).toString().padStart(2,'0');
+  return `${m}:${sec}`;
+}
 function todayKey(){return localKey(new Date())}
 function todayDate(){const d=new Date();d.setHours(0,0,0,0);return d;}
-function render(){$('#time').textContent=fmt(S.t.left);$('#count').textContent='#'+(S.t.total+1);$('#go').textContent=S.t.running?'DURDUR':'BAŞLAT';$('#go').classList.toggle('on',S.t.running);const labels={pomo:'Odaklanma zamanı!',short:'Kısa mola',long:'Uzun mola'};$('#msg').textContent=labels[S.t.mode]||'';document.documentElement.dataset.mode=S.t.mode;$$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.m===S.t.mode));renderAuth();renderYearView();renderSettingsUI();}
-function renderAuth(){const chip=$('#userChip'),avatar=$('#userAvatar'),name=$('#userName'),login=$('#loginBtn'),logout=$('#logoutBtn');if(S.user){name.textContent=S.user.name||S.user.email||'Kullanıcı';avatar.textContent=(S.user.name||'U')[0].toUpperCase();chip.style.display='inline-flex';chip.style.alignItems='center';chip.style.gap='6px';login.style.display='none';logout.style.display='inline-block';}else{chip.style.display='none';login.style.display='inline-block';logout.style.display='none';}}
-function renderSettingsUI(){['pomo','short','long','every'].forEach(k=>{const el=$('#c_'+k);if(el)el.value=S.cfg[k];});updateSwitch('autoB',S.cfg.autoB);updateSwitch('autoP',S.cfg.autoP);updateSwitch('push',S.cfg.push);const volEl=$('#c_vol');if(volEl)volEl.value=S.cfg.vol;}
-function updateSwitch(id,value){const cb=$('#c_'+id);const sw=$('#sw_'+id);if(cb)cb.checked=value;if(sw)sw.classList.toggle('on',value);}
-function renderYearView(){$('#yearDisplay').textContent=currentYear;let yearPomo=0,yearMin=0,yearDays=0;const yStart=new Date(currentYear,0,1),yEnd=new Date(currentYear,11,31,23,59,59);for(let d=new Date(yStart);d<=yEnd;d=addDays(d,1)){const e=S.log[localKey(d)];if(e?.n>0){yearPomo+=e.n;yearMin+=e.n*S.cfg.pomo;yearDays++;}}$('#sYearPomo').textContent=yearPomo;$('#sYearMin').textContent=yearMin>=60?`${Math.floor(yearMin/60)} sa ${yearMin%60} dk`:yearMin+' dk';$('#sYearAvg').textContent=yearDays?Math.round(yearMin/yearDays):0;const grid=$('#monthsGrid');const today=todayDate();let html='';for(let m=0;m<12;m++){const mStart=new Date(currentYear,m,1);const mEnd=new Date(currentYear,m+1,0);const mName=MONTHS[m];let mPomo=0,mMin=0;for(let d=new Date(mStart);d<=mEnd;d=addDays(d,1)){const e=S.log[localKey(d)];if(e?.n>0){mPomo+=e.n;mMin+=e.n*S.cfg.pomo;}}let weeksHtml='';for(let w=0;w<4;w++){const weekStart=addDays(mStart,w*7);const weekEnd=addDays(weekStart,6);if(weekEnd<mStart||weekStart>mEnd){weeksHtml+=`<div class="week-card empty"><div class="week-label">Hafta ${w+1}</div><div class="week-total">—</div><div class="week-range">Bu ayda yok</div></div>`;continue;}const dispStart=new Date(Math.max(weekStart,mStart));const dispEnd=new Date(Math.min(weekEnd,mEnd));const range=`${dispStart.getDate()}-${dispEnd.getDate()} ${mName.slice(0,3)}`;let wPomo=0,wMin=0;for(let d=new Date(weekStart);d<=weekEnd;d=addDays(d,1)){const e=S.log[localKey(d)];if(e?.n>0){wPomo+=e.n;wMin+=e.n*S.cfg.pomo;}}const isCurrent=today>=weekStart&&today<=weekEnd;weeksHtml+=`<div class="week-card${isCurrent?' current':''}" data-year="${currentYear}" data-month="${m}" data-week="${w}" data-wstart="${localKey(weekStart)}" data-wend="${localKey(weekEnd)}" tabindex="0" role="button" aria-label="Hafta ${w+1}, ${range}, ${wPomo} pomodoro"><div class="week-label">Hafta ${w+1}</div><div class="week-total">${wPomo||'—'}</div><div class="week-range">${range}</div></div>`;}html+=`<article class="month-card" role="listitem" aria-label="${mName} ${currentYear}"><header class="month-header"><span class="month-name">${mName}</span><div class="month-stats"><span>${mPomo} 🍅</span><span>${mMin>=60?Math.floor(mMin/60)+' sa':mMin+' dk'}</span></div></header><div class="month-weeks" role="list">${weeksHtml}</div></article>`;}grid.innerHTML=html;grid.querySelectorAll('.week-card:not(.empty)').forEach(card=>{card.onclick=()=>showWeekDetail(card);card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showWeekDetail(card);}};});}
-function showWeekDetail(card){const year=+card.dataset.year,month=+card.dataset.month,week=+card.dataset.week;const wStart=parseLocal(card.dataset.wstart);const wEnd=parseLocal(card.dataset.wend);selectedWeekStart=wStart;currentView='week';$('#yearView').classList.add('hidden');$('#weekDetailView').classList.remove('hidden');renderWeekDetail(wStart,wEnd,year,month,week);}
-function renderWeekDetail(wStart,wEnd,year,month,weekIdx){const detail=$('#weekDetail');const today=todayDate();const todayK=todayKey();let totalPomo=0,totalMin=0,daysWithData=0;const daysData=[];for(let i=0;i<7;i++){const d=addDays(wStart,i);const k=localKey(d);const e=S.log[k]||{n:0};const mins=e.n*S.cfg.pomo;if(e.n>0){totalPomo+=e.n;totalMin+=mins;daysWithData++;}daysData.push({name:DAYS[d.getDay()],date:d,count:e.n,minutes:mins,isToday:k===todayK,key:k});}const avg=daysWithData?Math.round(totalMin/daysWithData):0;const maxCount=Math.max(1,...daysData.map(d=>d.count));let barsHtml='';daysData.forEach(day=>{const h=Math.round((day.count/maxCount)*70)||3;const dm=day.minutes>=60?`${Math.floor(day.minutes/60)} sa ${day.minutes%60} dk`:day.minutes+' dk';const tip=`${day.name} ${day.date.getDate()} ${MONTHS[month].slice(0,3)}: ${day.count} 🍅 (${dm})`;barsHtml+=`<div class="day-bar${day.count===0?' z':''}${day.isToday?' today':''}"><span class="day-bar-value">${day.count||''}</span><span class="day-bar-graph" style="height:${h}%"></span><span class="day-bar-label">${day.name}</span><span class="day-tooltip">${tip}</span></div>`;});detail.innerHTML=`<header class="week-detail-header"><span class="week-detail-title">Hafta ${weekIdx+1} · ${wStart.getDate()}-${wEnd.getDate()} ${MONTHS[month]} ${year}</span><button class="week-detail-close" id="closeWeekDetail">×</button></header><div class="week-detail-stats"><div class="week-detail-stat"><b>${totalPomo}</b><span>Pomodoro</span></div><div class="week-detail-stat"><b>${totalMin>=60?Math.floor(totalMin/60)+' sa '+(totalMin%60)+' dk':totalMin+' dk'}</b><span>Odak Süresi</span></div><div class="week-detail-stat"><b>${avg}</b><span>Günlük Ort.</span></div></div><div class="day-bars">${barsHtml}</div>`;$('#closeWeekDetail').onclick=closeWeekDetail;}
-function closeWeekDetail(){currentView='year';$('#weekDetailView').classList.add('hidden');$('#yearView').classList.remove('hidden');}
+
+function render(){
+  $('#time').textContent=fmt(S.t.left);
+  $('#count').textContent='#'+(S.t.total+1);
+  $('#go').textContent=S.t.running?'DURDUR':'BAŞLAT';
+  $('#go').classList.toggle('on',S.t.running);
+  const labels={pomo:'Odaklanma zamanı!',short:'Kısa mola',long:'Uzun mola'};
+  $('#msg').textContent=labels[S.t.mode]||'';
+  document.documentElement.dataset.mode=S.t.mode;
+  $$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.m===S.t.mode));
+  renderAuth();
+  renderYearView();
+  renderSettingsUI();
+}
+
+function renderAuth(){
+  const chip=$('#userChip'), avatar=$('#userAvatar'), name=$('#userName'), login=$('#loginBtn'), logout=$('#logoutBtn');
+  if(S.user){
+    name.textContent=S.user.name||S.user.email||'Kullanıcı';
+    avatar.textContent=(S.user.name||'U')[0].toUpperCase();
+    chip.style.display='inline-flex';
+    chip.style.alignItems='center';
+    chip.style.gap='6px';
+    login.style.display='none';
+    logout.style.display='inline-block';
+  }else{
+    chip.style.display='none';
+    login.style.display='inline-block';
+    logout.style.display='none';
+  }
+}
+
+function renderSettingsUI(){
+  ['pomo','short','long','every'].forEach(k=>{
+    const el=$('#c_'+k);
+    if(el) el.value=S.cfg[k];
+  });
+  updateSwitch('autoB', S.cfg.autoB);
+  updateSwitch('autoP', S.cfg.autoP);
+  updateSwitch('push', S.cfg.push);
+  const volEl=$('#c_vol');
+  if(volEl) volEl.value=S.cfg.vol;
+}
+
+function updateSwitch(id, value){
+  const cb=$('#c_'+id);
+  const sw=$('#sw_'+id);
+  if(cb) cb.checked=value;
+  if(sw) sw.classList.toggle('on', value);
+}
+
+// --- Year View ---
+function renderYearView(){
+  $('#yearDisplay').textContent = currentYear;
+  
+  let yearPomo=0, yearMin=0, yearDays=0;
+  const yStart=new Date(currentYear,0,1), yEnd=new Date(currentYear,11,31,23,59,59);
+  for(let d=new Date(yStart); d<=yEnd; d=addDays(d,1)){
+    const e=S.log[localKey(d)];
+    if(e?.n>0){yearPomo+=e.n; yearMin+=e.n*S.cfg.pomo; yearDays++;}
+  }
+  $('#sYearPomo').textContent=yearPomo;
+  $('#sYearMin').textContent=yearMin>=60?`${Math.floor(yearMin/60)} sa ${yearMin%60} dk`:yearMin+' dk';
+  $('#sYearAvg').textContent=yearDays?Math.round(yearMin/yearDays):0;
+
+  const grid=$('#monthsGrid');
+  const today=todayDate();
+  let html='';
+  
+  for(let m=0; m<12; m++){
+    const mStart=new Date(currentYear,m,1);
+    const mEnd=new Date(currentYear,m+1,0);
+    const mName=MONTHS[m];
+    
+    let mPomo=0, mMin=0;
+    for(let d=new Date(mStart); d<=mEnd; d=addDays(d,1)){
+      const e=S.log[localKey(d)];
+      if(e?.n>0){mPomo+=e.n; mMin+=e.n*S.cfg.pomo;}
+    }
+    
+    const firstMon=startOfWeek(mStart);
+    let weeksHtml='';
+    
+    for(let w=0; w<4; w++){
+      const wStart=addDays(firstMon,w*7);
+      const wEnd=addDays(wStart,6);
+      
+      if(wEnd<mStart || wStart>mEnd){
+        weeksHtml+=`<div class="week-card empty"><div class="week-label">Hafta ${w+1}</div><div class="week-total">—</div><div class="week-range">Bu ayda yok</div></div>`;
+        continue;
+      }
+      
+      const dispStart=new Date(Math.max(wStart,mStart));
+      const dispEnd=new Date(Math.min(wEnd,mEnd));
+      const range=`${dispStart.getDate()}-${dispEnd.getDate()} ${mName.slice(0,3)}`;
+      
+      let wPomo=0, wMin=0;
+      for(let d=new Date(wStart); d<=wEnd; d=addDays(d,1)){
+        const e=S.log[localKey(d)];
+        if(e?.n>0){wPomo+=e.n; wMin+=e.n*S.cfg.pomo;}
+      }
+      
+      const isCurrent = today>=wStart && today<=wEnd;
+      
+      weeksHtml+=`
+        <div class="week-card${isCurrent?' current':''}" 
+             data-year="${currentYear}" data-month="${m}" data-week="${w}"
+             data-wstart="${localKey(wStart)}" data-wend="${localKey(wEnd)}"
+             tabindex="0" role="button"
+             aria-label="Hafta ${w+1}, ${range}, ${wPomo} pomodoro">
+          <div class="week-label">Hafta ${w+1}</div>
+          <div class="week-total">${wPomo||'—'}</div>
+          <div class="week-range">${range}</div>
+        </div>
+      `;
+    }
+    
+    html+=`
+      <article class="month-card" role="listitem" aria-label="${mName} ${currentYear}">
+        <header class="month-header">
+          <span class="month-name">${mName}</span>
+          <div class="month-stats"><span>${mPomo} 🍅</span><span>${mMin>=60?Math.floor(mMin/60)+' sa':mMin+' dk'}</span></div>
+        </header>
+        <div class="month-weeks" role="list">${weeksHtml}</div>
+      </article>
+    `;
+  }
+  
+  grid.innerHTML=html;
+  grid.querySelectorAll('.week-card:not(.empty)').forEach(card=>{
+    card.onclick=()=>showWeekDetail(card);
+    card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showWeekDetail(card);}};
+  });
+}
+
+function showWeekDetail(card){
+  const year=+card.dataset.year, month=+card.dataset.month, week=+card.dataset.week;
+  const wStart=parseLocal(card.dataset.wstart);
+  const wEnd=parseLocal(card.dataset.wend);
+  selectedWeekStart=wStart;
+  currentView='week';
+  $('#yearView').classList.add('hidden');
+  $('#weekDetailView').classList.remove('hidden');
+  renderWeekDetail(wStart,wEnd,year,month,week);
+}
+
+function renderWeekDetail(wStart,wEnd,year,month,weekIdx){
+  const detail=$('#weekDetail');
+  const today=todayDate();
+  const todayK=todayKey();
+  
+  let totalPomo=0, totalMin=0, daysWithData=0;
+  const daysData=[];
+  
+  for(let i=0;i<7;i++){
+    const d=addDays(wStart,i);
+    const k=localKey(d);
+    const e=S.log[k]||{n:0};
+    const mins=e.n*S.cfg.pomo;
+    if(e.n>0){totalPomo+=e.n; totalMin+=mins; daysWithData++;}
+    daysData.push({name:DAYS[d.getDay()],date:d,count:e.n,minutes:mins,isToday:k===todayK,key:k});
+  }
+  
+  const avg=daysWithData?Math.round(totalMin/daysWithData):0;
+  const maxCount=Math.max(1,...daysData.map(d=>d.count));
+  
+  let barsHtml='';
+  daysData.forEach(day=>{
+    const h=Math.round((day.count/maxCount)*70)||3;
+    const dm=day.minutes>=60?`${Math.floor(day.minutes/60)} sa ${day.minutes%60} dk`:day.minutes+' dk';
+    const tip=`${day.name} ${day.date.getDate()} ${MONTHS[month].slice(0,3)}: ${day.count} 🍅 (${dm})`;
+    barsHtml+=`<div class="day-bar${day.count===0?' z':''}${day.isToday?' today':''}"><span class="day-bar-value">${day.count||''}</span><span class="day-bar-graph" style="height:${h}%"></span><span class="day-bar-label">${day.name}</span><span class="day-tooltip">${tip}</span></div>`;
+  });
+  
+  detail.innerHTML=`<header class="week-detail-header"><span class="week-detail-title">Hafta ${weekIdx+1} · ${wStart.getDate()}-${wEnd.getDate()} ${MONTHS[month]} ${year}</span><button class="week-detail-close" id="closeWeekDetail">×</button></header><div class="week-detail-stats"><div class="week-detail-stat"><b>${totalPomo}</b><span>Pomodoro</span></div><div class="week-detail-stat"><b>${totalMin>=60?Math.floor(totalMin/60)+' sa '+(totalMin%60)+' dk':totalMin+' dk'}</b><span>Odak Süresi</span></div><div class="week-detail-stat"><b>${avg}</b><span>Günlük Ort.</span></div></div><div class="day-bars">${barsHtml}</div>`;
+  $('#closeWeekDetail').onclick=closeWeekDetail;
+}
+
+function closeWeekDetail(){
+  currentView='year';
+  $('#weekDetailView').classList.add('hidden');
+  $('#yearView').classList.remove('hidden');
+}
+
+// --- Navigation ---
 $('#prevYear').onclick=()=>{currentYear--;closeWeekDetail();render();};
 $('#nextYear').onclick=()=>{currentYear++;closeWeekDetail();render();};
 $('#backToYear').onclick=closeWeekDetail;
-function setMode(m,reset=true){S.t.mode=m;S.t.left=dur(m);S.t.total=0;S.t.running=false;S.t.lastUpdate=Date.now();S.save();render();}
-function tick(){if(!S.t.running)return;const now=Date.now();const delta=Math.floor((now-S.t.lastUpdate)/1000);if(delta>=1){S.t.left=Math.max(0,S.t.left-delta);S.t.lastUpdate=now;if(S.t.left<=0)completeCycle();render();}}
-function completeCycle(){S.t.running=false;S.t.total++;const k=todayKey();S.log[k]={n:(S.log[k]||{n:0}).n+1};const next=S.t.mode==='pomo'?(S.t.total%S.cfg.every===0?'long':'short'):'pomo';const autoContinue=(S.t.mode==='pomo'&&S.cfg.autoB)||(S.t.mode!=='pomo'&&S.cfg.autoP);S.t.mode=next;S.t.left=dur(next);S.t.running=autoContinue;S.t.lastUpdate=Date.now();beep();notify(S.t.mode==='pomo'?'Mola bitti, odaklan!':'Odaklanma bitti, mola!');S.save();}
-function start(){if(S.t.left<=0)S.t.left=dur(S.t.mode);S.t.running=true;S.t.lastUpdate=Date.now();unlockAudio();S.save();render();}
+
+// --- Timer logic (FIXED: accurate 1-second ticks) ---
+function setMode(m,reset=true){
+  S.t.mode=m;
+  S.t.left=dur(m);
+  S.t.total=0;
+  S.t.running=false;
+  S.t.lastUpdate=Date.now();
+  S.save();render();
+}
+function tick(){
+  if(!S.t.running) return;
+  const now=Date.now();
+  const delta=Math.floor((now-S.t.lastUpdate)/1000);
+  if(delta>=1){
+    S.t.left=Math.max(0,S.t.left-delta);
+    S.t.lastUpdate=now;
+    if(S.t.left<=0) completeCycle();
+    render();
+  }
+}
+function completeCycle(){
+  S.t.running=false;
+  S.t.total++;
+  const k=todayKey();
+  S.log[k]={n:(S.log[k]||{n:0}).n+1};
+  const next=S.t.mode==='pomo'?(S.t.total%S.cfg.every===0?'long':'short'):'pomo';
+  const autoContinue=(S.t.mode==='pomo'&&S.cfg.autoB)||(S.t.mode!=='pomo'&&S.cfg.autoP);
+  S.t.mode=next;
+  S.t.left=dur(next);
+  S.t.running=autoContinue;
+  S.t.lastUpdate=Date.now();
+  beep();
+  notify(S.t.mode==='pomo'?'Mola bitti, odaklan!':'Odaklanma bitti, mola!');
+  S.save();
+}
+function start(){
+  if(S.t.left<=0) S.t.left=dur(S.t.mode);
+  S.t.running=true;
+  S.t.lastUpdate=Date.now();
+  unlockAudio();
+  S.save();render();
+}
 function pause(){S.t.running=false;S.save();render();}
-function beep(){if(!S.cfg.vol)return;try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=880;g.gain.value=S.cfg.vol;o.connect(g).connect(ctx.destination);o.start();o.stop(ctx.currentTime+.5);}catch(e){console.warn('Audio error',e)}}
-function notify(t){if('Notification'in window&&Notification.permission==='granted'&&S.cfg.push){new Notification('Odak',{body:t,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⏱</text></svg>'});}}
+function beep(){
+  if(!S.cfg.vol) return;
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type='sine';o.frequency.value=880;g.gain.value=S.cfg.vol;
+    o.connect(g).connect(ctx.destination);o.start();o.stop(ctx.currentTime+.5);
+  }catch(e){console.warn('Audio error',e)}
+}
+function notify(t){
+  if('Notification'in window&&Notification.permission==='granted'&&S.cfg.push){
+    new Notification('Odak',{body:t,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⏱</text></svg>'});
+  }
+}
 function unlockAudio(){try{const c=new(window.AudioContext||window.webkitAudioContext)();c.resume()}catch{}}
 function requestNotifPerm(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
-function initFirebaseAuth(){if(!window.firebaseAuth){console.warn('Firebase auth not ready yet');return;}window.firebaseOnAuthStateChanged(window.firebaseAuth,async(user)=>{if(user){S.user={name:user.displayName,email:user.email,uid:user.uid,photo:user.photoURL};await registerOneSignal(user.uid);}else{S.user=null;}S.save();renderAuth();});$('#loginBtn').onclick=async(){if(!window.firebaseAuth){alert('Firebase henüz yüklenmedi, lütfen bekleyip tekrar deneyin');return;}try{await window.firebaseSignInWithPopup(window.firebaseAuth,window.googleProvider);}catch(e){console.error('Firebase Auth error:',e);let msg='Giriş başarısız';if(e.code==='auth/unauthorized-domain')msg='Bu domain Firebase\'de yetkili değil. Firebase Console > Authentication > Settings > Authorized domains\'a bu domaini ekleyin.';else if(e.code==='auth/popup-blocked')msg='Popup engellendi. Tarayıcı ayarlarından izin verin.';else if(e.code==='auth/cancelled-popup-request')msg='Giriş iptal edildi.';else msg+=': '+e.message;alert(msg);}};$('#logoutBtn').onclick=async(){try{await window.firebaseSignOut(window.firebaseAuth);}catch(e){console.error('Logout error',e)}};}
-async function initOneSignal(){if(!window.OneSignal)return;try{await OneSignal.init({appId:"a823248a-8bfe-48c3-b6ed-96419313a1b4",allowLocalhostAsSecureOrigin:true,notifyButton:{enable:false},welcomeNotification:{disable:true}});OneSignal.on('subscriptionChange',async(isSubscribed)=>{if(isSubscribed){const id=await OneSignal.getUserId();S.onesignalId=id;S.save();if(S.user?.uid){await fetch('/api/register-device',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:S.user.uid,onesignalId:id})}).catch(()=>{});}}});}catch(e){console.warn('OneSignal init error',e)}}
-async function registerOneSignal(uid){if(!window.OneSignal||!S.cfg.push)return;try{const permission=await OneSignal.getNotificationPermission();if(permission==='granted'){const id=await OneSignal.getUserId();if(id){S.onesignalId=id;S.save();await fetch('/api/register-device',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:uid,onesignalId:id})}).catch(()=>{});}}}catch(e){console.warn('OneSignal register error',e)}}
-function promptOneSignal(){if(window.OneSignal){OneSignal.showNativePrompt().catch(()=>{});}}
-function openSettings(){renderSettingsUI();$('#dlg').showModal();}
+
+// --- Firebase Auth ---
+function initFirebaseAuth(){
+  if(!window.firebaseAuth){
+    console.warn('Firebase auth not ready yet');
+    return;
+  }
+  
+  window.firebaseOnAuthStateChanged(window.firebaseAuth, async (user)=>{
+    if(user){
+      S.user={name:user.displayName,email:user.email,uid:user.uid,photo:user.photoURL};
+      await registerOneSignal(user.uid);
+    }else{
+      S.user=null;
+    }
+    S.save();renderAuth();
+  });
+  
+  $('#loginBtn').onclick=async()=>{
+    if(!window.firebaseAuth){
+      alert('Firebase henüz yüklenmedi, lütfen bekleyip tekrar deneyin');
+      return;
+    }
+    try{
+      await window.firebaseSignInWithPopup(window.firebaseAuth, window.googleProvider);
+    }catch(e){
+      console.error('Firebase Auth error:', e);
+      let msg='Giriş başarısız';
+      if(e.code==='auth/unauthorized-domain'){
+        msg='Bu domain Firebase\'de yetkili değil. Firebase Console > Authentication > Settings > Authorized domains\'a bu domaini ekleyin.';
+      }else if(e.code==='auth/popup-blocked'){
+        msg='Popup engellendi. Tarayıcı ayarlarından izin verin.';
+      }else if(e.code==='auth/cancelled-popup-request'){
+        msg='Giriş iptal edildi.';
+      }else{
+        msg+=': '+e.message;
+      }
+      alert(msg);
+    }
+  };
+  $('#logoutBtn').onclick=async()=>{
+    try{
+      await window.firebaseSignOut(window.firebaseAuth);
+    }catch(e){console.error('Logout error',e)}
+  };
+}
+
+// --- OneSignal ---
+async function initOneSignal(){
+  if(!window.OneSignal) return;
+  try{
+    await OneSignal.init({
+      appId: "a823248a-8bfe-48c3-b6ed-96419313a1b4",
+      allowLocalhostAsSecureOrigin: true,
+      notifyButton: {enable: false},
+      welcomeNotification: {disable: true}
+    });
+    
+    OneSignal.on('subscriptionChange', async (isSubscribed)=>{
+      if(isSubscribed){
+        const id=await OneSignal.getUserId();
+        S.onesignalId=id;
+        S.save();
+        if(S.user?.uid){
+          await fetch('/api/register-device',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({userId:S.user.uid,onesignalId:id})
+          }).catch(()=>{});
+        }
+      }
+    });
+  }catch(e){console.warn('OneSignal init error',e)}
+}
+
+async function registerOneSignal(uid){
+  if(!window.OneSignal || !S.cfg.push) return;
+  try{
+    const permission=await OneSignal.getNotificationPermission();
+    if(permission==='granted'){
+      const id=await OneSignal.getUserId();
+      if(id){
+        S.onesignalId=id;
+        S.save();
+        await fetch('/api/register-device',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({userId:uid,onesignalId:id})
+        }).catch(()=>{});
+      }
+    }
+  }catch(e){console.warn('OneSignal register error',e)}
+}
+
+function promptOneSignal(){
+  if(window.OneSignal){
+    OneSignal.showNativePrompt().catch(()=>{});
+  }
+}
+
+// --- Settings ---
+function openSettings(){
+  renderSettingsUI();
+  $('#dlg').showModal();
+}
 function closeSettings(){$('#dlg').close();}
-function bindSettings(){['pomo','short','long','every'].forEach(k=>{const el=$('#c_'+k);if(el){el.onchange=e=>{let v=parseInt(e.target.value)||DEF[k];const max=k==='every'?12:120;v=Math.max(1,Math.min(max,v));S.cfg[k]=v;e.target.value=v;if(!S.t.running&&k===S.t.mode)S.t.left=dur(k);S.save();render();};}});const toggles=[{id:'autoB',cfg:'autoB'},{id:'autoP',cfg:'autoP'},{id:'push',cfg:'push'}];toggles.forEach(t=>{const cb=$('#c_'+t.id);if(cb){cb.onchange=()=>{const newVal=cb.checked;S.cfg[t.cfg]=newVal;updateSwitch(t.id,newVal);S.save();if(t.cfg==='push'&&newVal){requestNotifPerm();promptOneSignal();registerOneSignal(S.user?.uid);}render();};}});const volEl=$('#c_vol');if(volEl){volEl.oninput=e=>{S.cfg.vol=+e.target.value;S.save();}};const testBtn=$('#test');if(testBtn){testBtn.onclick=()=>{unlockAudio();requestNotifPerm();beep();}};}
-$('#openSet').onclick=openSettings;$('#closeSet').onclick=closeSettings;$('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')closeSettings();});
+
+function bindSettings(){
+  ['pomo','short','long','every'].forEach(k=>{
+    const el=$('#c_'+k);
+    if(el){
+      el.onchange=e=>{
+        let v=parseInt(e.target.value)||DEF[k];
+        const max=k==='every'?12:120;
+        v=Math.max(1,Math.min(max,v));
+        S.cfg[k]=v;
+        e.target.value=v;
+        if(!S.t.running&&k===S.t.mode)S.t.left=dur(k);
+        S.save();render();
+      };
+    }
+  });
+  
+  const toggles=[
+    {id:'autoB',cfg:'autoB'},
+    {id:'autoP',cfg:'autoP'},
+    {id:'push',cfg:'push'}
+  ];
+  
+  toggles.forEach(t=>{
+    const cb=$('#c_'+t.id);
+    if(cb){
+      cb.onchange=()=>{
+        const newVal=cb.checked;
+        S.cfg[t.cfg]=newVal;
+        updateSwitch(t.id, newVal);
+        S.save();
+        if(t.cfg==='push' && newVal){
+          requestNotifPerm();
+          promptOneSignal();
+          registerOneSignal(S.user?.uid);
+        }
+        render();
+      };
+    }
+  });
+  
+  const volEl=$('#c_vol');
+  if(volEl){
+    volEl.oninput=e=>{
+      S.cfg.vol=+e.target.value;
+      S.save();
+    };
+  }
+  
+  const testBtn=$('#test');
+  if(testBtn){
+    testBtn.onclick=()=>{
+      unlockAudio();
+      requestNotifPerm();
+      beep();
+    };
+  }
+}
+
+$('#openSet').onclick=openSettings;
+$('#closeSet').onclick=closeSettings;
+$('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')closeSettings();});
+
+// --- Main button bindings ---
 $('#go').onclick=()=>{S.t.running?pause():start();};
 $('#reset').onclick=()=>setMode(S.t.mode,true);
 $('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
 $$('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m,false));
-function waitForFirebase(){if(window.firebaseAuth){initFirebaseAuth();}else{window.addEventListener('firebase-ready',initFirebaseAuth,{once:true});}}
-waitForFirebase();initOneSignal();bindSettings();render();setInterval(tick,200);requestNotifPerm();
+
+// --- Init: Firebase ready event'ini bekle ---
+function waitForFirebase(){
+  if(window.firebaseAuth){
+    initFirebaseAuth();
+  }else{
+    window.addEventListener('firebase-ready', initFirebaseAuth, {once:true});
+  }
+}
+
+waitForFirebase();
+initOneSignal();
+bindSettings();
+render();
+setInterval(tick,200);
+requestNotifPerm();
 </script>
 </body>
 </html>
