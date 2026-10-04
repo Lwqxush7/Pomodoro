@@ -62,9 +62,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .side{margin-top:22px;display:flex;justify-content:center;gap:10px}
 .small{background:none;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;transition:all .15s}
 .small:hover{border-color:#fff;background:rgba(255,255,255,.1)}
-.count{margin:22px 0 4px;opacity:.75;font-size:15px}
 .msg-wrap{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px}
-.msg{font-size:18px;font-weight:500;min-height:24px;white-space:nowrap}
+.msg{font-size:18px;font-weight:500;min-height:24px;white-space:nowrap;display:flex;align-items:center;gap:8px}
+.msg #count{opacity:.75;font-size:15px;font-weight:500}
 :focus-visible{outline:3px solid #fff;outline-offset:2px}
 .sum{margin-top:34px}
 .sum h2{font-size:20px;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.2);text-align:center}
@@ -179,10 +179,10 @@ dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
       <button class="small" id="reset">Sıfırla</button>
       <button class="small" id="skip">Atla</button>
     </div>
-    <div class="count" id="count">#1</div>
     <div class="msg-wrap">
-      <button class="small" id="decMin" aria-label="Dakika azalt">1 Azalt</button>
-      <div class="msg" id="msg">Odaklanma zamanı!</div>
+      <button class="small" id="incMin" aria-label="Sayaç artır">+1</button>
+      <button class="small" id="decMin" aria-label="Sayaç azalt">-1</button>
+      <div class="msg" id="msg"><span id="count">#1</span> Odaklanma zamanı!</div>
       <button class="small" id="resetFocus" aria-label="Odaklanma zamanını sıfırla">Odaklanma Zamanını Sıfırla</button>
     </div>
   </main>
@@ -337,7 +337,12 @@ function render(){
   $('#go').textContent=S.t.running?'DURDUR':'BAŞLAT';
   $('#go').classList.toggle('on',S.t.running);
   const labels={pomo:'Odaklanma zamanı!',short:'Kısa mola',long:'Uzun mola'};
-  $('#msg').textContent=labels[S.t.mode]||'';
+  const msgEl=$('#msg');
+  const countEl=$('#count');
+  const label=labels[S.t.mode]||'';
+  msgEl.innerHTML='';
+  msgEl.append(countEl);
+  msgEl.append(document.createTextNode(' '+label));
   document.documentElement.dataset.mode=S.t.mode;
   $$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.m===S.t.mode));
   renderAuth();
@@ -866,6 +871,7 @@ $('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')closeSettings();})
 $('#go').onclick=()=>{S.t.running?pause():start();};
 $('#reset').onclick=()=>setMode(S.t.mode,true);
 $('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
+$('#incMin').onclick=()=>{S.t.total++;S.save();render();};
 $('#decMin').onclick=()=>{S.t.total=Math.max(0,S.t.total-1);S.save();render();};
 $('#resetFocus').onclick=()=>{S.t.total=0;S.save();render();};
 $$('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m,false));
