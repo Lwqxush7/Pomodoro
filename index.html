@@ -866,8 +866,8 @@ $('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')closeSettings();})
 $('#go').onclick=()=>{S.t.running?pause():start();};
 $('#reset').onclick=()=>setMode(S.t.mode,true);
 $('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
-$('#decMin').onclick=()=>{S.t.left=Math.max(0,S.t.left-60);S.t.lastUpdate=Date.now();S.save();render();};
-$('#resetFocus').onclick=()=>{S.t.left=dur('pomo');S.t.lastUpdate=Date.now();S.save();render();};
+$('#decMin').onclick=()=>{S.t.total=Math.max(0,S.t.total-1);S.save();render();};
+$('#resetFocus').onclick=()=>{S.t.total=0;S.save();render();};
 $$('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m,false));
 
 // --- Init: Firebase ready event'ini bekle ---
