@@ -62,9 +62,10 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .side{margin-top:22px;display:flex;justify-content:center;gap:10px}
 .small{background:none;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;transition:all .15s}
 .small:hover{border-color:#fff;background:rgba(255,255,255,.1)}
-.msg-wrap{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px}
-.msg{font-size:18px;font-weight:500;min-height:24px;white-space:nowrap;display:flex;align-items:center;gap:8px}
-.msg #count{opacity:.75;font-size:15px;font-weight:500}
+.msg-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:8px}
+.count-row{display:flex;align-items:center;gap:8px}
+.count-row #count{opacity:.75;font-size:15px;font-weight:500;min-width:2.5ch;text-align:center}
+.msg{font-size:18px;font-weight:500;min-height:24px;white-space:nowrap}
 :focus-visible{outline:3px solid #fff;outline-offset:2px}
 .sum{margin-top:34px}
 .sum h2{font-size:20px;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.2);text-align:center}
@@ -180,9 +181,12 @@ dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
       <button class="small" id="skip">Atla</button>
     </div>
     <div class="msg-wrap">
-      <button class="small" id="incMin" aria-label="Sayaç artır">+1</button>
-      <button class="small" id="decMin" aria-label="Sayaç azalt">-1</button>
-      <div class="msg" id="msg"><span id="count">#1</span> Odaklanma zamanı!</div>
+      <div class="count-row">
+        <button class="small" id="decMin" aria-label="Sayaç azalt">-1</button>
+        <span id="count">#1</span>
+        <button class="small" id="incMin" aria-label="Sayaç artır">+1</button>
+      </div>
+      <div class="msg" id="msg">Odaklanma zamanı!</div>
       <button class="small" id="resetFocus" aria-label="Odaklanma zamanını sıfırla">Odaklanma Zamanını Sıfırla</button>
     </div>
   </main>
@@ -337,12 +341,7 @@ function render(){
   $('#go').textContent=S.t.running?'DURDUR':'BAŞLAT';
   $('#go').classList.toggle('on',S.t.running);
   const labels={pomo:'Odaklanma zamanı!',short:'Kısa mola',long:'Uzun mola'};
-  const msgEl=$('#msg');
-  const countEl=$('#count');
-  const label=labels[S.t.mode]||'';
-  msgEl.innerHTML='';
-  msgEl.append(countEl);
-  msgEl.append(document.createTextNode(' '+label));
+  $('#msg').textContent=labels[S.t.mode]||'';
   document.documentElement.dataset.mode=S.t.mode;
   $$('.tab').forEach(b=>b.classList.toggle('on',b.dataset.m===S.t.mode));
   renderAuth();
