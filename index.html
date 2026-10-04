@@ -5,10 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Odak — Pomodoro</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏱</text></svg>">
+<!-- Firebase SDK -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
 window.firebaseConfig = {
   apiKey: "AIzaSyCwklq5EWcoW3AMLgtB0MzLDap6Ca21baI",
   authDomain: "pomodoro-4d237.firebaseapp.com",
@@ -17,17 +19,23 @@ window.firebaseConfig = {
   messagingSenderId: "160216497815",
   appId: "1:160216497815:web:048f1a85e3835a8936f3d2"
 };
+
 const app = initializeApp(window.firebaseConfig);
-window.firebaseAuth = getAuth(app);
-window.googleProvider = new GoogleAuthProvider();
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+// Global expose - ana script erişebilsin
+window.firebaseAuth = auth;
+window.googleProvider = provider;
 window.firebaseSignInWithPopup = signInWithPopup;
 window.firebaseSignOut = signOut;
 window.firebaseOnAuthStateChanged = onAuthStateChanged;
-window.fs = { db: getFirestore(app), doc, setDoc, onSnapshot };
+
+// Firebase hazır olduğunda global event tetikle
 window.dispatchEvent(new Event('firebase-ready'));
 </script>
-<script>window.OneSignalDeferred=window.OneSignalDeferred||[];</script>
-<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<!-- OneSignal SDK -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" async></script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#2b59c3}
 html{scroll-padding-top:env(safe-area-inset-top,0px);min-height:100%}
@@ -55,26 +63,34 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .small{background:none;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:6px 14px;cursor:pointer;transition:all .15s}
 .small:hover{border-color:#fff;background:rgba(255,255,255,.1)}
 .count{margin:22px 0 4px;opacity:.75;font-size:15px}
-.msg{font-size:18px;font-weight:500;min-height:24px}
+.msg-wrap{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.msg{font-size:18px;font-weight:500;min-height:24px;white-space:nowrap}
 :focus-visible{outline:3px solid #fff;outline-offset:2px}
 .sum{margin-top:34px}
 .sum h2{font-size:20px;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.2);text-align:center}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center;margin-bottom:16px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center}
 .stat{background:rgba(255,255,255,.12);border-radius:12px;padding:14px 6px}
 .stat b{display:block;font-size:28px;font-weight:800}
 .stat span{font-size:13px;opacity:.8}
+
+/* Year/Month Navigation */
 .sum-head{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
 .nav-btn{font-size:22px;padding:6px 12px;line-height:1;min-width:44px}
 .year-display{font-size:18px;font-weight:700;min-width:80px;text-align:center}
+
+/* Month Grid - 3x4 layout for 12 months */
 .months-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-@media (max-width:700px){.months-grid{grid-template-columns:repeat(2,1fr)}}
-@media (max-width:480px){.months-grid{grid-template-columns:1fr}}
+@media (max-width: 700px){.months-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width: 480px){.months-grid{grid-template-columns:1fr}}
+
 .month-card{background:rgba(255,255,255,.12);border-radius:12px;padding:12px;transition:transform .15s,background .15s;border:1px solid transparent}
 .month-card:hover{background:rgba(255,255,255,.2);transform:translateY(-2px)}
 .month-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.15)}
 .month-name{font-size:16px;font-weight:700}
 .month-stats{display:flex;gap:12px;font-size:11px;opacity:.8}
 .month-weeks{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+
+/* Week Cards - 4 per month in 2x2 grid */
 .week-card{background:rgba(255,255,255,.08);border-radius:8px;padding:8px 6px;text-align:center;cursor:pointer;transition:transform .15s,background .15s;border:1px solid transparent;position:relative}
 .week-card:hover{background:rgba(255,255,255,.18);transform:translateY(-2px);z-index:10}
 .week-card.current{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.4)}
@@ -83,6 +99,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .week-label{font-size:11px;opacity:.85;margin-bottom:4px}
 .week-total{font-size:18px;font-weight:800;line-height:1}
 .week-range{font-size:10px;opacity:.7;margin-top:2px}
+
+/* Week Detail View */
 .week-detail{background:rgba(255,255,255,.12);border-radius:12px;padding:16px;margin-top:16px;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .week-detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.15)}
@@ -93,35 +111,47 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .week-detail-stat{background:rgba(255,255,255,.12);border-radius:12px;padding:12px 6px}
 .week-detail-stat b{display:block;font-size:22px;font-weight:800}
 .week-detail-stat span{font-size:12px;opacity:.8}
+
+/* Day Bars Graph */
 .day-bars{display:flex;align-items:flex-end;justify-content:space-between;gap:6px;height:120px;background:rgba(255,255,255,.08);border-radius:12px;padding:12px 8px 8px}
-.day-bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:10px;gap:3px;cursor:default;position:relative}
+.day-bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:10px;gap:3px;cursor:default}
 .day-bar-value{font-weight:700;font-size:11px;white-space:nowrap}
 .day-bar-graph{display:block;width:100%;max-width:36px;background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.6) 100%);border-radius:4px 4px 0 0;min-height:3px;opacity:.9;transition:height .3s ease,opacity .2s}
 .day-bar:hover .day-bar-graph{opacity:1}
 .day-bar.today .day-bar-graph{background:linear-gradient(180deg,#ffd600 0%,#ffb300 100%)}
 .day-bar-label{font-size:10px;opacity:.8;white-space:nowrap}
+
+/* Tooltip for day detail */
 .day-tooltip{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.9);color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;white-space:nowrap;z-index:100;pointer-events:none;opacity:0;transition:opacity .15s;margin-bottom:6px}
 .day-bar:hover .day-tooltip{opacity:1}
+.day-bar{position:relative}
+
+/* Settings Dialog - Improved */
 dialog{border:0;border-radius:14px;padding:0;width:min(400px,92vw);color:#222;background:#fff;box-shadow:0 20px 40px rgba(0,0,0,.2)}
 dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
 .dh{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e6e6e6}
 .dh b{font-size:18px}.dh button{border:0;background:none;font-size:22px;cursor:pointer;color:#555;padding:4px}
 .db{padding:20px}
 .setting-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #f0f0f0}
+.setting-row:last-of-type{border-bottom:none}
 .setting-label{font-size:15px;font-weight:500}
 .setting-control{display:flex;align-items:center;gap:8px}
 .setting-row input[type=number]{width:70px;padding:10px 12px;border:1px solid #e0e0e0;background:#fafafa;border-radius:8px;text-align:center;font-size:15px;transition:border-color .15s}
 .setting-row input[type=number]:focus{outline:none;border-color:#2b59c3;background:#fff}
 .setting-row input[type=range]{flex:1;max-width:180px;accent-color:#2b59c3}
+.setting-row input[type=checkbox]{width:20px;height:20px;accent-color:#2b59c3;cursor:pointer}
 .setting-row .btn-test{background:#2b59c3;color:#fff;border:0;border-radius:8px;padding:8px 16px;font-weight:600;cursor:pointer;transition:background .15s}
 .setting-row .btn-test:hover{background:#1e4aa3}
 .setting-row .switch{position:relative;width:44px;height:26px;background:#e0e0e0;border-radius:13px;cursor:pointer;transition:background .15s}
 .setting-row .switch.on{background:#2b59c3}
-.setting-row .switch::after{content:'';position:absolute;top:2px;left:2px;width:22px;height:22px;background:#fff;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:left .15s;pointer-events:none}
+.setting-row .switch::after{content:'';position:absolute;top:2px;left:2px;width:22px;height:22px;background:#fff;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:left .15s}
 .setting-row .switch.on::after{left:20px}
-.switch input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
 .tt{font-size:13px;color:#777;margin:16px 0 0;line-height:1.5}
+.push-status{font-size:13px;color:#888;background:#f5f5f5;padding:4px 10px;border-radius:20px;white-space:nowrap}
+
+/* Hidden utility */
 .hidden{display:none!important}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -150,7 +180,11 @@ dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
       <button class="small" id="skip">Atla</button>
     </div>
     <div class="count" id="count">#1</div>
-    <div class="msg" id="msg">Odaklanma zamanı!</div>
+    <div class="msg-wrap">
+      <button class="small" id="decMin" aria-label="Dakika azalt">1 Azalt</button>
+      <div class="msg" id="msg">Odaklanma zamanı!</div>
+      <button class="small" id="resetFocus" aria-label="Odaklanma zamanını sıfırla">Odaklanma Zamanını Sıfırla</button>
+    </div>
   </main>
 
   <section class="sum" aria-labelledby="ozet">
@@ -178,16 +212,47 @@ dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
 <dialog id="dlg">
   <div class="dh"><b>Ayarlar</b><button id="closeSet" aria-label="Kapat">×</button></div>
   <div class="db">
-    <div class="setting-row"><span class="setting-label">Pomodoro (dk)</span><div class="setting-control"><input type="number" min="1" max="120" id="c_pomo"></div></div>
-    <div class="setting-row"><span class="setting-label">Kısa mola (dk)</span><div class="setting-control"><input type="number" min="1" max="60" id="c_short"></div></div>
-    <div class="setting-row"><span class="setting-label">Uzun mola (dk)</span><div class="setting-control"><input type="number" min="1" max="60" id="c_long"></div></div>
-    <div class="setting-row"><span class="setting-label">Uzun mola aralığı</span><div class="setting-control"><input type="number" min="2" max="12" id="c_every"></div></div>
-    <div class="setting-row"><span class="setting-label">Molaları otomatik başlat</span><div class="setting-control"><label class="switch" id="sw_autoB"><input type="checkbox" id="c_autoB"></label></div></div>
-    <div class="setting-row"><span class="setting-label">Pomodoroları otomatik başlat</span><div class="setting-control"><label class="switch" id="sw_autoP"><input type="checkbox" id="c_autoP"></label></div></div>
-    <div class="setting-row"><span class="setting-label">Alarm sesi</span><div class="setting-control"><input type="range" min="0" max="1" step="0.05" id="c_vol"></div></div>
-    <div class="setting-row"><span class="setting-label">Kapalıyken bildirim</span><div class="setting-control"><label class="switch" id="sw_push"><input type="checkbox" id="c_push"></label></div></div>
-    <div class="setting-row"><span class="setting-label">Alarmı dene</span><div class="setting-control"><button class="btn-test" id="test" type="button">Çal</button></div></div>
-    <p class="tt">"Kapalıyken bildirim" için Google ile giriş yapmalı ve bildirim iznini vermelisin. Ses için tarayıcı izni gerekir.</p>
+    <div class="setting-row">
+      <span class="setting-label">Pomodoro (dk)</span>
+      <div class="setting-control"><input type="number" min="1" max="120" id="c_pomo"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Kısa mola (dk)</span>
+      <div class="setting-control"><input type="number" min="1" max="60" id="c_short"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Uzun mola (dk)</span>
+      <div class="setting-control"><input type="number" min="1" max="60" id="c_long"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Uzun mola aralığı</span>
+      <div class="setting-control"><input type="number" min="2" max="12" id="c_every"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Molaları otomatik başlat</span>
+      <div class="setting-control"><label class="switch" id="sw_autoB"><input type="checkbox" id="c_autoB"></label></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Pomodoroları otomatik başlat</span>
+      <div class="setting-control"><label class="switch" id="sw_autoP"><input type="checkbox" id="c_autoP"></label></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Alarm sesi</span>
+      <div class="setting-control"><input type="range" min="0" max="1" step="0.05" id="c_vol"></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Kapalıyken bildirim (OneSignal)</span>
+      <div class="setting-control"><label class="switch" id="sw_push"><input type="checkbox" id="c_push"></label></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Push durumu</span>
+      <div class="setting-control"><span class="push-status" id="pushStatus">—</span></div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Alarmı dene</span>
+      <div class="setting-control"><button class="btn-test" id="test" type="button">Çal</button></div>
+    </div>
+    <p class="tt">"Kapalıyken bildirim" OneSignal push izni ister. Ses için tarayıcı izni gerekir.</p>
   </div>
 </dialog>
 
@@ -195,50 +260,76 @@ dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
 const DEF={pomo:25,short:5,long:15,every:4,autoB:true,autoP:false,vol:.7,push:false};
 const DAYS=['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
 const MONTHS=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-const SCHEDULE_ENDPOINT='https://pomodoro-teal-gamma.vercel.app/api/schedule';
+
 const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
 
-function localKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
-function parseLocal(key){const [y,m,d]=key.split('-').map(Number);return new Date(y,m-1,d)}
-function startOfWeek(d){const nd=new Date(d);nd.setDate(d.getDate()-((d.getDay()+6)%7));nd.setHours(0,0,0,0);return nd}
-function addDays(d,n){const nd=new Date(d);nd.setDate(d.getDate()+n);return nd}
+// --- Date helpers (local timezone safe) ---
+function localKey(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function parseLocal(key){
+  const [y,m,d]=key.split('-').map(Number);
+  return new Date(y,m-1,d);
+}
+function startOfWeek(d){
+  const day=d.getDay();
+  const diff=(day+6)%7;
+  const nd=new Date(d);
+  nd.setDate(d.getDate()-diff);
+  nd.setHours(0,0,0,0);
+  return nd;
+}
+function addDays(d,n){
+  const nd=new Date(d);
+  nd.setDate(d.getDate()+n);
+  return nd;
+}
 
-let currentYear=new Date().getFullYear();
+// --- State ---
+let currentYear = new Date().getFullYear();
+let currentView = 'year';
+let selectedWeekStart = null;
 
+// --- Storage ---
 const S={
   cfg:{...DEF},
-  t:{mode:'pomo',left:DEF.pomo*60,running:false,total:0,lastUpdate:0,notifId:null},
+  t:{mode:'pomo',left:DEF.pomo*60,running:false,total:0,lastUpdate:0},
   log:{},
   user:null,
-  updatedAt:0,
+  onesignalId:null,
   load(){
     try{
       const raw=localStorage.getItem('pomo_v2');
-      if(raw){
-        const d=JSON.parse(raw);
-        if(d.cfg) this.cfg={...DEF,...d.cfg};
-        if(d.t) this.t={...this.t,...d.t};
-        if(d.log) this.log=d.log;
-        if(d.user) this.user=d.user;
-        if(d.updatedAt) this.updatedAt=d.updatedAt;
-      }
+      if(!raw) return;
+      const d=JSON.parse(raw);
+      if(d.cfg) this.cfg={...DEF,...d.cfg};
+      if(d.t) this.t={...this.t,...d.t};
+      if(d.log) this.log=d.log;
+      if(d.user) this.user=d.user;
+      if(d.onesignalId) this.onesignalId=d.onesignalId;
     }catch(e){console.error('Load error',e)}
-    if(!this.t.running) this.t.left=dur(this.t.mode);
+    this.t.left=this.t.running?this.t.left:dur(this.t.mode);
     this.t.lastUpdate=this.t.lastUpdate||Date.now();
   },
   save(){
-    try{localStorage.setItem('pomo_v2',JSON.stringify({cfg:this.cfg,t:this.t,log:this.log,user:this.user,updatedAt:this.updatedAt}))}catch(e){}
+    localStorage.setItem('pomo_v2',JSON.stringify({cfg:this.cfg,t:this.t,log:this.log,user:this.user,onesignalId:this.onesignalId}));
   }
 };
-
-function dur(m){return S.cfg[m]*60}
-function fmt(s){return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
-function todayKey(){return localKey(new Date())}
-function todayDate(){const d=new Date();d.setHours(0,0,0,0);return d}
-function fmtMin(m){return m>=60?`${Math.floor(m/60)} sa ${m%60} dk`:m+' dk'}
-
 S.load();
+
+// --- Core helpers ---
+function dur(m){return S.cfg[m]*60}
+function fmt(s){
+  const m=Math.floor(s/60).toString().padStart(2,'0');
+  const sec=(s%60).toString().padStart(2,'0');
+  return `${m}:${sec}`;
+}
+function todayKey(){return localKey(new Date())}
+function todayDate(){const d=new Date();d.setHours(0,0,0,0);return d;}
 
 function render(){
   $('#time').textContent=fmt(S.t.left);
@@ -255,172 +346,230 @@ function render(){
 }
 
 function renderAuth(){
-  const chip=$('#userChip'),login=$('#loginBtn'),logout=$('#logoutBtn');
+  const chip=$('#userChip'), avatar=$('#userAvatar'), name=$('#userName'), login=$('#loginBtn'), logout=$('#logoutBtn');
   if(S.user){
-    $('#userName').textContent=S.user.name||S.user.email||'Kullanıcı';
-    $('#userAvatar').textContent=(S.user.name||'U')[0].toUpperCase();
-    chip.style.display='inline-flex';chip.style.alignItems='center';chip.style.gap='6px';
-    login.style.display='none';logout.style.display='inline-block';
+    name.textContent=S.user.name||S.user.email||'Kullanıcı';
+    avatar.textContent=(S.user.name||'U')[0].toUpperCase();
+    chip.style.display='inline-flex';
+    chip.style.alignItems='center';
+    chip.style.gap='6px';
+    login.style.display='none';
+    logout.style.display='inline-block';
   }else{
-    chip.style.display='none';login.style.display='inline-block';logout.style.display='none';
+    chip.style.display='none';
+    login.style.display='inline-block';
+    logout.style.display='none';
   }
 }
 
 function renderSettingsUI(){
-  ['pomo','short','long','every'].forEach(k=>{const el=$('#c_'+k);if(el&&document.activeElement!==el) el.value=S.cfg[k]});
-  updateSwitch('autoB',S.cfg.autoB);
-  updateSwitch('autoP',S.cfg.autoP);
-  updateSwitch('push',S.cfg.push);
-  const v=$('#c_vol');if(v) v.value=S.cfg.vol;
+  ['pomo','short','long','every'].forEach(k=>{
+    const el=$('#c_'+k);
+    if(el) el.value=S.cfg[k];
+  });
+  updateSwitch('autoB', S.cfg.autoB);
+  updateSwitch('autoP', S.cfg.autoP);
+  updateSwitch('push', S.cfg.push);
+  const volEl=$('#c_vol');
+  if(volEl) volEl.value=S.cfg.vol;
+  renderPushStatus();
 }
 
-function updateSwitch(id,value){
-  const cb=$('#c_'+id),sw=$('#sw_'+id);
+function updateSwitch(id, value){
+  const cb=$('#c_'+id);
+  const sw=$('#sw_'+id);
   if(cb) cb.checked=value;
-  if(sw) sw.classList.toggle('on',value);
+  if(sw) sw.classList.toggle('on', value);
 }
 
+// --- Year View ---
 function renderYearView(){
-  $('#yearDisplay').textContent=currentYear;
-  let yearPomo=0,yearMin=0,yearDays=0;
-  for(let d=new Date(currentYear,0,1),end=new Date(currentYear,11,31,23,59,59);d<=end;d=addDays(d,1)){
+  $('#yearDisplay').textContent = currentYear;
+  
+  let yearPomo=0, yearMin=0, yearDays=0;
+  const yStart=new Date(currentYear,0,1), yEnd=new Date(currentYear,11,31,23,59,59);
+  for(let d=new Date(yStart); d<=yEnd; d=addDays(d,1)){
     const e=S.log[localKey(d)];
-    if(e?.n>0){yearPomo+=e.n;yearMin+=e.n*S.cfg.pomo;yearDays++}
+    if(e?.n>0){yearPomo+=e.n; yearMin+=e.n*S.cfg.pomo; yearDays++;}
   }
   $('#sYearPomo').textContent=yearPomo;
-  $('#sYearMin').textContent=fmtMin(yearMin);
+  $('#sYearMin').textContent=yearMin>=60?`${Math.floor(yearMin/60)} sa ${yearMin%60} dk`:yearMin+' dk';
   $('#sYearAvg').textContent=yearDays?Math.round(yearMin/yearDays):0;
 
+  const grid=$('#monthsGrid');
   const today=todayDate();
   let html='';
-  for(let m=0;m<12;m++){
-    const mStart=new Date(currentYear,m,1),mEnd=new Date(currentYear,m+1,0),mName=MONTHS[m];
-    let mPomo=0,mMin=0;
-    for(let d=new Date(mStart);d<=mEnd;d=addDays(d,1)){
+  
+  for(let m=0; m<12; m++){
+    const mStart=new Date(currentYear,m,1);
+    const mEnd=new Date(currentYear,m+1,0);
+    const mName=MONTHS[m];
+    
+    let mPomo=0, mMin=0;
+    for(let d=new Date(mStart); d<=mEnd; d=addDays(d,1)){
       const e=S.log[localKey(d)];
-      if(e?.n>0){mPomo+=e.n;mMin+=e.n*S.cfg.pomo}
+      if(e?.n>0){mPomo+=e.n; mMin+=e.n*S.cfg.pomo;}
     }
+    
     const firstMon=startOfWeek(mStart);
     let weeksHtml='';
-    for(let w=0;w<4;w++){
-      const wStart=addDays(firstMon,w*7),wEnd=addDays(wStart,6);
-      if(wEnd<mStart||wStart>mEnd){
+    
+    for(let w=0; w<4; w++){
+      const wStart=addDays(firstMon,w*7);
+      const wEnd=addDays(wStart,6);
+      
+      if(wEnd<mStart || wStart>mEnd){
         weeksHtml+=`<div class="week-card empty"><div class="week-label">Hafta ${w+1}</div><div class="week-total">—</div><div class="week-range">Bu ayda yok</div></div>`;
         continue;
       }
-      const dispStart=new Date(Math.max(wStart,mStart)),dispEnd=new Date(Math.min(wEnd,mEnd));
+      
+      const dispStart=new Date(Math.max(wStart,mStart));
+      const dispEnd=new Date(Math.min(wEnd,mEnd));
       const range=`${dispStart.getDate()}-${dispEnd.getDate()} ${mName.slice(0,3)}`;
-      let wPomo=0;
-      for(let d=new Date(wStart);d<=wEnd;d=addDays(d,1)){
+      
+      let wPomo=0, wMin=0;
+      for(let d=new Date(wStart); d<=wEnd; d=addDays(d,1)){
         const e=S.log[localKey(d)];
-        if(e?.n>0) wPomo+=e.n;
+        if(e?.n>0){wPomo+=e.n; wMin+=e.n*S.cfg.pomo;}
       }
-      const isCurrent=today>=wStart&&today<=wEnd;
-      weeksHtml+=`<div class="week-card${isCurrent?' current':''}" data-year="${currentYear}" data-month="${m}" data-week="${w}" data-wstart="${localKey(wStart)}" data-wend="${localKey(wEnd)}" tabindex="0" role="button" aria-label="Hafta ${w+1}, ${range}, ${wPomo} pomodoro"><div class="week-label">Hafta ${w+1}</div><div class="week-total">${wPomo||'—'}</div><div class="week-range">${range}</div></div>`;
+      
+      const isCurrent = today>=wStart && today<=wEnd;
+      
+      weeksHtml+=`
+        <div class="week-card${isCurrent?' current':''}" 
+             data-year="${currentYear}" data-month="${m}" data-week="${w}"
+             data-wstart="${localKey(wStart)}" data-wend="${localKey(wEnd)}"
+             tabindex="0" role="button"
+             aria-label="Hafta ${w+1}, ${range}, ${wPomo} pomodoro">
+          <div class="week-label">Hafta ${w+1}</div>
+          <div class="week-total">${wPomo||'—'}</div>
+          <div class="week-range">${range}</div>
+        </div>
+      `;
     }
-    html+=`<article class="month-card" role="listitem" aria-label="${mName} ${currentYear}"><header class="month-header"><span class="month-name">${mName}</span><div class="month-stats"><span>${mPomo} 🍅</span><span>${fmtMin(mMin)}</span></div></header><div class="month-weeks" role="list">${weeksHtml}</div></article>`;
+    
+    html+=`
+      <article class="month-card" role="listitem" aria-label="${mName} ${currentYear}">
+        <header class="month-header">
+          <span class="month-name">${mName}</span>
+          <div class="month-stats"><span>${mPomo} 🍅</span><span>${mMin>=60?Math.floor(mMin/60)+' sa':mMin+' dk'}</span></div>
+        </header>
+        <div class="month-weeks" role="list">${weeksHtml}</div>
+      </article>
+    `;
   }
-  const grid=$('#monthsGrid');
+  
   grid.innerHTML=html;
   grid.querySelectorAll('.week-card:not(.empty)').forEach(card=>{
     card.onclick=()=>showWeekDetail(card);
-    card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showWeekDetail(card)}};
+    card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showWeekDetail(card);}};
   });
 }
 
 function showWeekDetail(card){
+  const year=+card.dataset.year, month=+card.dataset.month, week=+card.dataset.week;
+  const wStart=parseLocal(card.dataset.wstart);
+  const wEnd=parseLocal(card.dataset.wend);
+  selectedWeekStart=wStart;
+  currentView='week';
   $('#yearView').classList.add('hidden');
   $('#weekDetailView').classList.remove('hidden');
-  renderWeekDetail(parseLocal(card.dataset.wstart),parseLocal(card.dataset.wend),+card.dataset.year,+card.dataset.month,+card.dataset.week);
+  renderWeekDetail(wStart,wEnd,year,month,week);
 }
 
 function renderWeekDetail(wStart,wEnd,year,month,weekIdx){
+  const detail=$('#weekDetail');
+  const today=todayDate();
   const todayK=todayKey();
-  let totalPomo=0,totalMin=0,daysWithData=0;
+  
+  let totalPomo=0, totalMin=0, daysWithData=0;
   const daysData=[];
+  
   for(let i=0;i<7;i++){
-    const d=addDays(wStart,i),k=localKey(d),e=S.log[k]||{n:0},mins=e.n*S.cfg.pomo;
-    if(e.n>0){totalPomo+=e.n;totalMin+=mins;daysWithData++}
-    daysData.push({name:DAYS[d.getDay()],date:d,count:e.n,minutes:mins,isToday:k===todayK});
+    const d=addDays(wStart,i);
+    const k=localKey(d);
+    const e=S.log[k]||{n:0};
+    const mins=e.n*S.cfg.pomo;
+    if(e.n>0){totalPomo+=e.n; totalMin+=mins; daysWithData++;}
+    daysData.push({name:DAYS[d.getDay()],date:d,count:e.n,minutes:mins,isToday:k===todayK,key:k});
   }
+  
   const avg=daysWithData?Math.round(totalMin/daysWithData):0;
   const maxCount=Math.max(1,...daysData.map(d=>d.count));
-  let bars='';
+  
+  let barsHtml='';
   daysData.forEach(day=>{
     const h=Math.round((day.count/maxCount)*70)||3;
-    const tip=`${day.name} ${day.date.getDate()} ${MONTHS[day.date.getMonth()].slice(0,3)}: ${day.count} 🍅 (${fmtMin(day.minutes)})`;
-    bars+=`<div class="day-bar${day.isToday?' today':''}"><span class="day-bar-value">${day.count||''}</span><span class="day-bar-graph" style="height:${h}%"></span><span class="day-bar-label">${day.name}</span><span class="day-tooltip">${tip}</span></div>`;
+    const dm=day.minutes>=60?`${Math.floor(day.minutes/60)} sa ${day.minutes%60} dk`:day.minutes+' dk';
+    const tip=`${day.name} ${day.date.getDate()} ${MONTHS[month].slice(0,3)}: ${day.count} 🍅 (${dm})`;
+    barsHtml+=`<div class="day-bar${day.count===0?' z':''}${day.isToday?' today':''}"><span class="day-bar-value">${day.count||''}</span><span class="day-bar-graph" style="height:${h}%"></span><span class="day-bar-label">${day.name}</span><span class="day-tooltip">${tip}</span></div>`;
   });
-  $('#weekDetail').innerHTML=`<header class="week-detail-header"><span class="week-detail-title">Hafta ${weekIdx+1} · ${wStart.getDate()}-${wEnd.getDate()} ${MONTHS[month]} ${year}</span><button class="week-detail-close" id="closeWeekDetail" aria-label="Kapat">×</button></header><div class="week-detail-stats"><div class="week-detail-stat"><b>${totalPomo}</b><span>Pomodoro</span></div><div class="week-detail-stat"><b>${fmtMin(totalMin)}</b><span>Odak Süresi</span></div><div class="week-detail-stat"><b>${avg}</b><span>Günlük Ort.</span></div></div><div class="day-bars">${bars}</div>`;
+  
+  detail.innerHTML=`<header class="week-detail-header"><span class="week-detail-title">Hafta ${weekIdx+1} · ${wStart.getDate()}-${wEnd.getDate()} ${MONTHS[month]} ${year}</span><button class="week-detail-close" id="closeWeekDetail">×</button></header><div class="week-detail-stats"><div class="week-detail-stat"><b>${totalPomo}</b><span>Pomodoro</span></div><div class="week-detail-stat"><b>${totalMin>=60?Math.floor(totalMin/60)+' sa '+(totalMin%60)+' dk':totalMin+' dk'}</b><span>Odak Süresi</span></div><div class="week-detail-stat"><b>${avg}</b><span>Günlük Ort.</span></div></div><div class="day-bars">${barsHtml}</div>`;
   $('#closeWeekDetail').onclick=closeWeekDetail;
 }
 
 function closeWeekDetail(){
+  currentView='year';
   $('#weekDetailView').classList.add('hidden');
   $('#yearView').classList.remove('hidden');
 }
 
-$('#prevYear').onclick=()=>{currentYear--;closeWeekDetail();render()};
-$('#nextYear').onclick=()=>{currentYear++;closeWeekDetail();render()};
+// --- Navigation ---
+$('#prevYear').onclick=()=>{currentYear--;closeWeekDetail();render();};
+$('#nextYear').onclick=()=>{currentYear++;closeWeekDetail();render();};
 $('#backToYear').onclick=closeWeekDetail;
 
-// --- Zamanlayıcı ---
-async function api(p){
-  const r=await fetch(SCHEDULE_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
-  return r.json();
-}
-async function schedulePush(){
-  if(!(S.cfg.push&&S.user?.uid&&S.t.running)) return;
-  const mode=S.t.mode;
-  const body=mode==='pomo'?'Odaklanma bitti, mola zamanı!':'Mola bitti, odaklanma zamanı!';
-  try{
-    const d=await api({uid:S.user.uid,title:'Odak',body,endAt:new Date(Date.now()+S.t.left*1000).toISOString()});
-    if(!d.id) return;
-    if(!S.t.running||S.t.mode!==mode){api({cancelId:d.id}).catch(()=>{});return}
-    S.t.notifId=d.id;touch();
-  }catch(e){console.warn('schedule',e)}
-}
-async function cancelPush(){
-  const id=S.t.notifId;S.t.notifId=null;
-  if(!id) return;
-  try{await api({cancelId:id})}catch(e){}
-}
-function setMode(m){
-  cancelPush();
-  S.t.mode=m;S.t.left=dur(m);S.t.running=false;S.t.lastUpdate=Date.now();
-  touch();render();
+// --- Timer logic (FIXED: accurate 1-second ticks) ---
+function setMode(m,reset=true){
+  cancelScheduledPush();
+  S.t.mode=m;
+  S.t.left=dur(m);
+  S.t.total=0;
+  S.t.running=false;
+  S.t.lastUpdate=Date.now();
+  S.save();render();
 }
 function tick(){
   if(!S.t.running) return;
-  const delta=Math.floor((Date.now()-S.t.lastUpdate)/1000);
-  if(delta<1) return;
-  S.t.lastUpdate+=delta*1000;
-  S.t.left=Math.max(0,S.t.left-delta);
-  if(S.t.left<=0){completeCycle();render()}
-  else{$('#time').textContent=fmt(S.t.left);S.save()}
+  const now=Date.now();
+  const delta=Math.floor((now-S.t.lastUpdate)/1000);
+  if(delta>=1){
+    S.t.left=Math.max(0,S.t.left-delta);
+    S.t.lastUpdate=now;
+    if(S.t.left<=0) completeCycle();
+    render();
+  }
 }
 function completeCycle(){
-  const wasPomo=S.t.mode==='pomo';
-  const hadPush=!!S.t.notifId;S.t.notifId=null;
-  if(wasPomo){
-    S.t.total++;
-    const k=todayKey();
-    S.log[k]={n:(S.log[k]||{n:0}).n+1};
-  }
-  const next=wasPomo?(S.t.total%S.cfg.every===0?'long':'short'):'pomo';
-  const auto=wasPomo?S.cfg.autoB:S.cfg.autoP;
-  S.t.mode=next;S.t.left=dur(next);S.t.running=auto;S.t.lastUpdate=Date.now();
+  S.t.running=false;
+  S.t.total++;
+  const k=todayKey();
+  S.log[k]={n:(S.log[k]||{n:0}).n+1};
+  const next=S.t.mode==='pomo'?(S.t.total%S.cfg.every===0?'long':'short'):'pomo';
+  const autoContinue=(S.t.mode==='pomo'&&S.cfg.autoB)||(S.t.mode!=='pomo'&&S.cfg.autoP);
+  S.t.mode=next;
+  S.t.left=dur(next);
+  S.t.running=autoContinue;
+  S.t.lastUpdate=Date.now();
+  cancelScheduledPush(); // süresi dolan planlı bildirimi iptal et
   beep();
-  if(!hadPush) notify(next==='pomo'?'Mola bitti, odaklan!':'Odaklanma bitti, mola!');
-  touch();
-  if(auto) schedulePush();
+  notify(S.t.mode==='pomo'?'Mola bitti, odaklan!':'Odaklanma bitti, mola!');
+  S.save();
 }
 function start(){
   if(S.t.left<=0) S.t.left=dur(S.t.mode);
-  S.t.running=true;S.t.lastUpdate=Date.now();
-  unlockAudio();touch();render();schedulePush();
+  S.t.running=true;
+  S.t.lastUpdate=Date.now();
+  unlockAudio();
+  S.save();render();
+  scheduleEndPush(); // sekmeyi kapatınca bile süre sonu push gitsin
 }
-function pause(){S.t.running=false;cancelPush();touch();render()}
+function pause(){
+  S.t.running=false;
+  cancelScheduledPush();
+  S.save();render();
+}
 function beep(){
   if(!S.cfg.vol) return;
   try{
@@ -431,370 +580,311 @@ function beep(){
   }catch(e){console.warn('Audio error',e)}
 }
 function notify(t){
-  try{
-    if('Notification'in window&&Notification.permission==='granted'&&S.cfg.push) new Notification('Odak',{body:t});
-  }catch(e){}
+  if('Notification'in window&&Notification.permission==='granted'&&S.cfg.push){
+    new Notification('Odak',{body:t,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⏱</text></svg>'});
+  }
 }
 function unlockAudio(){try{const c=new(window.AudioContext||window.webkitAudioContext)();c.resume()}catch{}}
-function requestNotifPerm(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission()}
+function requestNotifPerm(){if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
 
 // --- Firebase Auth ---
 function initFirebaseAuth(){
-  if(!window.firebaseAuth) return;
-  window.firebaseOnAuthStateChanged(window.firebaseAuth,user=>{
+  if(!window.firebaseAuth){
+    console.warn('Firebase auth not ready yet');
+    return;
+  }
+  
+  window.firebaseOnAuthStateChanged(window.firebaseAuth, async (user)=>{
     if(user){
       S.user={name:user.displayName,email:user.email,uid:user.uid,photo:user.photoURL};
-      registerOneSignal(user.uid);
-      startSync(user.uid);
+      osAuthLink(user); // OneSignal external user id = Firebase uid
     }else{
       S.user=null;
-      stopSync();
+      osAuthLink(null);
     }
     S.save();renderAuth();
   });
+  
   $('#loginBtn').onclick=async()=>{
+    if(!window.firebaseAuth){
+      alert('Firebase henüz yüklenmedi, lütfen bekleyip tekrar deneyin');
+      return;
+    }
     try{
-      await window.firebaseSignInWithPopup(window.firebaseAuth,window.googleProvider);
+      await window.firebaseSignInWithPopup(window.firebaseAuth, window.googleProvider);
     }catch(e){
-      console.error('Firebase Auth error:',e);
+      console.error('Firebase Auth error:', e);
       let msg='Giriş başarısız';
-      if(e.code==='auth/unauthorized-domain') msg="Bu alan adı Firebase'de yetkili değil. Firebase Console > Authentication > Settings > Authorized domains'a ekleyin.";
-      else if(e.code==='auth/popup-blocked') msg='Popup engellendi. Tarayıcı ayarlarından izin verin.';
-      else if(e.code==='auth/cancelled-popup-request'||e.code==='auth/popup-closed-by-user') msg='Giriş iptal edildi.';
-      else msg+=': '+e.message;
+      if(e.code==='auth/unauthorized-domain'){
+        msg='Bu domain Firebase\'de yetkili değil. Firebase Console > Authentication > Settings > Authorized domains\'a bu domaini ekleyin.';
+      }else if(e.code==='auth/popup-blocked'){
+        msg='Popup engellendi. Tarayıcı ayarlarından izin verin.';
+      }else if(e.code==='auth/cancelled-popup-request'){
+        msg='Giriş iptal edildi.';
+      }else{
+        msg+=': '+e.message;
+      }
       alert(msg);
     }
   };
   $('#logoutBtn').onclick=async()=>{
-    try{await window.firebaseSignOut(window.firebaseAuth)}catch(e){console.error('Logout error',e)}
+    try{
+      await window.firebaseSignOut(window.firebaseAuth);
+    }catch(e){console.error('Logout error',e)}
   };
 }
 
-// --- Firestore eşitleme ---
-let unsubSync=null,pushTimer=null;
-function touch(){S.updatedAt=Date.now();S.save();pushRemote()}
-function mergeLog(a,b){
-  const o={...a};
-  for(const k in b) o[k]={n:Math.max(o[k]?.n||0,b[k]?.n||0)};
-  return o;
+// --- OneSignal (v16 SDK) ---
+const OS_APP_ID="a823248a-8bfe-48c3-b6ed-96419313a1b4";
+let osReady=false;
+const osOn=()=>window.OneSignal&&typeof window.OneSignal.init==='function';
+
+// v16 isim alanları, eski API'ye geri düşerek (legacy fallback) çalışır
+async function osSubscribed(){
+  if(!osOn()) return false;
+  try{
+    const p=OneSignal.User?.Push;
+    if(p&&p.optedIn!==undefined) return !!(await p.optedIn);
+    if(OneSignal.isSubscriptionPromoted) return !!(await OneSignal.isSubscriptionPromoted());
+  }catch(e){console.warn('osSubscribed',e)}
+  return false;
 }
-function pushRemote(){
-  if(!S.user?.uid||!window.fs) return;
-  clearTimeout(pushTimer);
-  pushTimer=setTimeout(async()=>{
-    const {vol,push,...sharedCfg}=S.cfg;
+async function osPermission(){
+  if('Notification'in window&&Notification.permission==='denied') return 'denied';
+  if(osOn()){
     try{
-      await fs.setDoc(fs.doc(fs.db,'odak_kullanicilar',S.user.uid),{cfg:sharedCfg,t:S.t,log:S.log,updatedAt:S.updatedAt});
-    }catch(e){console.warn('sync push',e)}
-  },300);
+      const p=OneSignal.User?.Push;
+      if(p&&p.permission!==undefined) return String(await p.permission);
+      if(OneSignal.getNotificationPermission) return String(await OneSignal.getNotificationPermission());
+    }catch(e){}
+  }
+  return 'Notification'in window?Notification.permission:'unknown';
 }
-function startSync(uid){
-  stopSync();
-  if(!window.fs) return;
-  unsubSync=fs.onSnapshot(fs.doc(fs.db,'odak_kullanicilar',uid),snap=>{
-    if(snap.metadata.hasPendingWrites) return;
-    if(!snap.exists()){pushRemote();return}
-    const r=snap.data();
-    const rLog=r.log||{};
-    const merged=mergeLog(S.log,rLog);
-    const logDiff=JSON.stringify(merged)!==JSON.stringify(rLog);
-    S.log=merged;
-    const remoteNewer=(r.updatedAt||0)>(S.updatedAt||0);
-    if(remoteNewer){
-      S.cfg={...S.cfg,...r.cfg};
-      S.t={...S.t,...r.t};
-      S.updatedAt=r.updatedAt;
+async function osUserId(){
+  if(!osOn()) return null;
+  try{
+    if(OneSignal.User?.Id?.get){const v=await OneSignal.User.Id.get();if(v)return v;}
+    if(OneSignal.getUserId){const v=await OneSignal.getUserId();if(v)return v;}
+  }catch(e){}
+  return null;
+}
+
+async function initOneSignal(){
+  if(osReady) return;
+  if(!osOn()){
+    // SDK 'async' yükleniyor — hazırlanana kadar bekle
+    if(!window.__osTries) window.__osTries=0;
+    window.__osTries++;
+    if(window.__osTries<40) setTimeout(initOneSignal,250);
+    return;
+  }
+  try{
+    await OneSignal.init({
+      appId:OS_APP_ID,
+      name:"Odak",
+      allowLocalhostAsSecureOrigin:true,
+      notifyButton:{enable:false},
+      welcomeNotification:{disable:true},
+      createNotification:{native:true,fallback:true}
+    });
+    OneSignal.on('subscriptionChange',async()=>{
+      S.onesignalId=await osUserId();
+      S.save();
+      renderPushStatus();
+    });
+    OneSignal.on('notificationClick',()=>{
+      window.focus();
+      if(S.t.osNotifId){S.t.osNotifId=null;S.save();}
+    });
+    osReady=true;
+    if(S.user?.uid) OneSignal.login(S.user.uid).catch(()=>{});
+    S.onesignalId=await osUserId();
+    S.save();
+    renderPushStatus();
+  }catch(e){console.warn('OneSignal init error',e)}
+}
+
+// Firebase oturumunu OneSignal kullanıcıyla eşleştir (external user id)
+async function osAuthLink(user){
+  if(!osReady) return;
+  try{
+    if(user?.uid) await OneSignal.login(user.uid);
+    else await OneSignal.logout();
+  }catch(e){console.warn('OneSignal auth link error',e)}
+  S.onesignalId=await osUserId();
+  S.save();
+}
+
+// Kullanıcı push anahtarını açtığında çağrılır: izin + abonelik akışı
+async function enablePush(){
+  if(!osReady) return;
+  const perm=await osPermission();
+  if(perm==='denied'||perm==='blocked'){
+    alert('Push bildirimleri tarayıcı ayarlarında engellenmiş.\nSite ayarlarından bildirim izni verdikten sonra bu anahtarı tekrar açın.');
+    return;
+  }
+  try{
+    const p=OneSignal.User?.Push;
+    if(p?.requestPermission) await p.requestPermission();
+    else if(typeof OneSignal.showNativePrompt==='function') await OneSignal.showNativePrompt();
+  }catch(e){console.warn('push prompt error',e)}
+  try{
+    const p=OneSignal.User?.Push;
+    if(p?.setSubscription) await p.setSubscription(true);
+  }catch(e){}
+  if(!(await osSubscribed())){
+    try{await OneSignal.Slidedown?.promptPush?.()}catch(e){}
+  }
+  renderPushStatus();
+}
+
+// Ayarlar penceresinde OneSignal durumunu gösterir
+async function renderPushStatus(){
+  const el=$('#pushStatus');
+  if(!el) return;
+  if(!S.cfg.push){el.textContent='Kapalı';return;}
+  if(!osReady){el.textContent='Bağlanıyor…';return;}
+  const perm=await osPermission();
+  if(perm==='denied'||perm==='blocked'){el.textContent='İzin engellendi';return;}
+  el.textContent=(await osSubscribed())?'Abonelik aktif':'Abonelik bekleniyor';
+}
+
+// --- Zamanlayıcı sonu için planlı OneSignal push ---
+// Sekme kapatılsa bile süre dolunca OneSignal sunucudan push gönderilir.
+async function scheduleEndPush(){
+  if(!S.cfg.push||!S.t.running||!osReady) return;
+  await cancelScheduledPush(); // önceki planlı bildirim varsa iptal et
+  if(!(await osSubscribed())) return;
+  const endAt=new Date(Date.now()+S.t.left*1000).toISOString();
+  const isPomo=S.t.mode==='pomo';
+  try{
+    const r=await fetch('/api/schedule',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        title:isPomo?'Odak süresi doldu!':'Mola bitti!',
+        body:isPomo?'Pomodorunu tamamladın, mola zamanı 🍅':'Odaklanma zamanı, hazır mısın?',
+        endAt,
+        externalId:S.user?.uid||undefined,
+        userId:S.onesignalId||undefined
+      })
+    });
+    if(r.ok){
+      const d=await r.json();
+      if(d.id){S.t.osNotifId=d.id;S.save();}
+    }else{
+      console.warn('scheduleEndPush',await r.json().catch(()=>({})));
     }
-    S.save();render();
-    if(logDiff||(r.updatedAt||0)<(S.updatedAt||0)) pushRemote();
-  },e=>console.warn('sync',e));
-}
-function stopSync(){if(unsubSync){unsubSync();unsubSync=null}}
-
-// --- OneSignal (v16) ---
-function initOneSignal(){
-  OneSignalDeferred.push(async function(OneSignal){
-    try{
-      await OneSignal.init({
-        appId:'a823248a-8bfe-48c3-b6ed-96419313a1b4',
-        serviceWorkerPath:'Pomodoro/OneSignalSDKWorker.js',
-        serviceWorkerParam:{scope:'/Pomodoro/'},
-        allowLocalhostAsSecureOrigin:true,
-        notifyButton:{enable:false}
-      });
-      if(S.user?.uid) await OneSignal.login(S.user.uid);
-    }catch(e){console.warn('OneSignal init',e)}
-  });
-}
-function registerOneSignal(uid){
-  if(!uid) return;
-  OneSignalDeferred.push(async function(OneSignal){
-    try{await OneSignal.login(uid)}catch(e){console.warn('OneSignal login',e)}
-  });
-}
-function promptOneSignal(){
-  OneSignalDeferred.push(async function(OneSignal){
-    try{await OneSignal.Notifications.requestPermission()}catch(e){}
-  });
+  }catch(e){console.warn('scheduleEndPush error',e)}
 }
 
-// --- Ayarlar ---
-function openSettings(){renderSettingsUI();$('#dlg').showModal()}
-function closeSettings(){$('#dlg').close()}
+async function cancelScheduledPush(){
+  const id=S.t.osNotifId;
+  if(!id) return;
+  S.t.osNotifId=null;
+  S.save();
+  fetch('/api/schedule',{
+    method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({id})
+  }).catch(()=>{});
+}
+
+// --- Settings ---
+function openSettings(){
+  renderSettingsUI();
+  $('#dlg').showModal();
+}
+function closeSettings(){$('#dlg').close();}
 
 function bindSettings(){
   ['pomo','short','long','every'].forEach(k=>{
     const el=$('#c_'+k);
-    if(!el) return;
-    el.onchange=e=>{
-      let v=parseInt(e.target.value)||DEF[k];
-      v=Math.max(1,Math.min(k==='every'?12:120,v));
-      S.cfg[k]=v;e.target.value=v;
-      if(!S.t.running&&k===S.t.mode) S.t.left=dur(k);
-      touch();render();
-    };
+    if(el){
+      el.onchange=e=>{
+        let v=parseInt(e.target.value)||DEF[k];
+        const max=k==='every'?12:120;
+        v=Math.max(1,Math.min(max,v));
+        S.cfg[k]=v;
+        e.target.value=v;
+        if(!S.t.running&&k===S.t.mode)S.t.left=dur(k);
+        S.save();render();
+      };
+    }
   });
-  ['autoB','autoP','push'].forEach(id=>{
-    const cb=$('#c_'+id);
-    if(!cb) return;
-    cb.onchange=()=>{
-      const val=cb.checked;
-      S.cfg[id]=val;
-      updateSwitch(id,val);
-      touch();
-      if(id==='push'){
-        if(val){promptOneSignal();registerOneSignal(S.user?.uid);schedulePush()}
-        else cancelPush();
-      }
-      render();
-    };
+  
+  const toggles=[
+    {id:'autoB',cfg:'autoB'},
+    {id:'autoP',cfg:'autoP'},
+    {id:'push',cfg:'push'}
+  ];
+  
+  toggles.forEach(t=>{
+    const cb=$('#c_'+t.id);
+    if(cb){
+      cb.onchange=()=>{
+        const newVal=cb.checked;
+        S.cfg[t.cfg]=newVal;
+        updateSwitch(t.id, newVal);
+        S.save();
+        if(t.cfg==='push'){
+          if(newVal){
+            requestNotifPerm();
+            enablePush();
+            if(S.t.running) scheduleEndPush();
+          }else{
+            cancelScheduledPush();
+          }
+          renderPushStatus();
+        }
+        render();
+      };
+    }
   });
-  const vol=$('#c_vol');
-  if(vol) vol.oninput=e=>{S.cfg.vol=+e.target.value;S.save()};
-  const test=$('#test');
-  if(test) test.onclick=()=>{unlockAudio();requestNotifPerm();beep()};
+  
+  const volEl=$('#c_vol');
+  if(volEl){
+    volEl.oninput=e=>{
+      S.cfg.vol=+e.target.value;
+      S.save();
+    };
+  }
+  
+  const testBtn=$('#test');
+  if(testBtn){
+    testBtn.onclick=()=>{
+      unlockAudio();
+      requestNotifPerm();
+      beep();
+    };
+  }
 }
 
 $('#openSet').onclick=openSettings;
 $('#closeSet').onclick=closeSettings;
-$('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg') closeSettings()});
+$('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')closeSettings();});
 
-$('#go').onclick=()=>{S.t.running?pause():start()};
-$('#reset').onclick=()=>setMode(S.t.mode);
-$('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo');
-$$('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+// --- Main button bindings ---
+$('#go').onclick=()=>{S.t.running?pause():start();};
+$('#reset').onclick=()=>setMode(S.t.mode,true);
+$('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
+$('#decMin').onclick=()=>{S.t.left=Math.max(0,S.t.left-60);S.t.lastUpdate=Date.now();S.save();render();};
+$('#resetFocus').onclick=()=>{S.t.left=dur('pomo');S.t.lastUpdate=Date.now();S.save();render();};
+$$('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m,false));
 
-if(window.firebaseAuth) initFirebaseAuth();
-else window.addEventListener('firebase-ready',initFirebaseAuth,{once:true});
+// --- Init: Firebase ready event'ini bekle ---
+function waitForFirebase(){
+  if(window.firebaseAuth){
+    initFirebaseAuth();
+  }else{
+    window.addEventListener('firebase-ready', initFirebaseAuth, {once:true});
+  }
+}
 
+waitForFirebase();
 initOneSignal();
 bindSettings();
 render();
 setInterval(tick,200);
-</script>
-<style>
-.day-bar{cursor:pointer;border-radius:8px}
-.day-bar.sel{background:rgba(255,255,255,.18)}
-.day-edit{margin-top:14px;text-align:center}
-.day-edit-title{font-size:15px;font-weight:700;margin-bottom:10px}
-.day-edit-btns{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
-.small:disabled{opacity:.4;cursor:default}
-</style>
-<script>
-let weekCtx=null,selDay=null;
-
-// Tamamlanan pomodoroya zaman damgası ekle
-const _completeCycle=completeCycle;
-completeCycle=function(){
-  const k=todayKey(),before=S.log[k]?.n||0;
-  _completeCycle();
-  const e=S.log[k];
-  if(e&&e.n>before){e.u=Date.now();S.save()}
-};
-
-// Gün bazında son değişiklik kazanır (zaman damgası yoksa eski davranış: max)
-function mergeLog(a,b){
-  const o={...a};
-  for(const k in b){
-    const x=o[k],y=b[k];
-    if(!x||!y){o[k]=x||y;continue}
-    const xu=x.u||0,yu=y.u||0;
-    if(xu===yu){
-      const n=Math.max(x.n||0,y.n||0);
-      o[k]=xu?{n,u:xu}:{n};
-    }else o[k]=xu>yu?x:y;
-  }
-  return o;
-}
-
-function editDay(k,n){
-  S.log[k]={n:Math.max(0,n),u:Date.now()};
-  S.save();pushRemote();render();
-}
-
-function showWeekDetail(card){
-  weekCtx={wStart:parseLocal(card.dataset.wstart),wEnd:parseLocal(card.dataset.wend),year:+card.dataset.year,month:+card.dataset.month,weekIdx:+card.dataset.week};
-  selDay=null;
-  $('#yearView').classList.add('hidden');
-  $('#weekDetailView').classList.remove('hidden');
-  renderWeekDetail();
-}
-function closeWeekDetail(){
-  weekCtx=null;selDay=null;
-  $('#weekDetailView').classList.add('hidden');
-  $('#yearView').classList.remove('hidden');
-}
-$('#backToYear').onclick=closeWeekDetail;
-
-function renderWeekDetail(){
-  if(!weekCtx) return;
-  const {wStart,wEnd,year,month,weekIdx}=weekCtx,todayK=todayKey();
-  let totalPomo=0,totalMin=0,daysWithData=0;
-  const days=[];
-  for(let i=0;i<7;i++){
-    const d=addDays(wStart,i),k=localKey(d),n=S.log[k]?.n||0,mins=n*S.cfg.pomo;
-    if(n>0){totalPomo+=n;totalMin+=mins;daysWithData++}
-    days.push({k,d,n,mins,name:DAYS[d.getDay()]});
-  }
-  const avg=daysWithData?Math.round(totalMin/daysWithData):0;
-  const maxN=Math.max(1,...days.map(x=>x.n));
-  let bars='';
-  days.forEach(x=>{
-    const h=Math.round(x.n/maxN*70)||3;
-    const tip=`${x.name} ${x.d.getDate()} ${MONTHS[x.d.getMonth()].slice(0,3)}: ${x.n} 🍅 (${fmtMin(x.mins)})`;
-    bars+=`<div class="day-bar${x.k===todayK?' today':''}${x.k===selDay?' sel':''}" data-k="${x.k}" role="button" tabindex="0" aria-label="${tip}"><span class="day-bar-value">${x.n||''}</span><span class="day-bar-graph" style="height:${h}%"></span><span class="day-bar-label">${x.name}</span><span class="day-tooltip">${tip}</span></div>`;
-  });
-  const sel=days.find(x=>x.k===selDay);
-  const edit=sel
-    ?`<div class="day-edit"><div class="day-edit-title">${sel.name} ${sel.d.getDate()} ${MONTHS[sel.d.getMonth()]} · ${sel.n} 🍅</div><div class="day-edit-btns"><button class="small" id="dayMinus"${sel.n?'':' disabled'}>−1 pomodoro</button><button class="small" id="dayReset"${sel.n?'':' disabled'}>Günü sıfırla</button></div></div>`
-    :`<div class="day-edit" style="opacity:.7;font-size:13px">Düzenlemek için bir güne dokun</div>`;
-  $('#weekDetail').innerHTML=`<header class="week-detail-header"><span class="week-detail-title">Hafta ${weekIdx+1} · ${wStart.getDate()}-${wEnd.getDate()} ${MONTHS[month]} ${year}</span><button class="week-detail-close" id="closeWeekDetail" aria-label="Kapat">×</button></header><div class="week-detail-stats"><div class="week-detail-stat"><b>${totalPomo}</b><span>Pomodoro</span></div><div class="week-detail-stat"><b>${fmtMin(totalMin)}</b><span>Odak Süresi</span></div><div class="week-detail-stat"><b>${avg}</b><span>Günlük Ort.</span></div></div><div class="day-bars">${bars}</div>${edit}`;
-  $('#closeWeekDetail').onclick=closeWeekDetail;
-  $$('#weekDetail .day-bar').forEach(el=>{
-    const pick=()=>{selDay=selDay===el.dataset.k?null:el.dataset.k;renderWeekDetail()};
-    el.onclick=pick;
-    el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick()}};
-  });
-  if(sel&&sel.n){
-    $('#dayMinus').onclick=()=>editDay(sel.k,(S.log[sel.k]?.n||0)-1);
-    $('#dayReset').onclick=()=>{if(confirm('Bu günün tüm pomodoroları silinsin mi?')) editDay(sel.k,0)};
-  }
-}
-
-// Eşitlemeden veri gelince açık hafta görünümü de yenilensin
-const _render=render;
-render=function(){_render();if(weekCtx) renderWeekDetail()};
-</script>
-<style>
-.day-bars{height:136px}
-.day-bar-label{line-height:1.2;text-align:center}
-</style>
-<script>
-// Aylık kartlar: 1-7, 8-14, 15-21, 22-ay sonu
-function renderYearView(){
-  $('#yearDisplay').textContent=currentYear;
-  let yearPomo=0,yearMin=0,yearDays=0;
-  for(let d=new Date(currentYear,0,1),end=new Date(currentYear,11,31,23,59,59);d<=end;d=addDays(d,1)){
-    const e=S.log[localKey(d)];
-    if(e?.n>0){yearPomo+=e.n;yearMin+=e.n*S.cfg.pomo;yearDays++}
-  }
-  $('#sYearPomo').textContent=yearPomo;
-  $('#sYearMin').textContent=fmtMin(yearMin);
-  $('#sYearAvg').textContent=yearDays?Math.round(yearMin/yearDays):0;
-
-  const today=todayDate();
-  let html='';
-  for(let m=0;m<12;m++){
-    const mName=MONTHS[m],dim=new Date(currentYear,m+1,0).getDate();
-    let mPomo=0,mMin=0;
-    for(let day=1;day<=dim;day++){
-      const e=S.log[localKey(new Date(currentYear,m,day))];
-      if(e?.n>0){mPomo+=e.n;mMin+=e.n*S.cfg.pomo}
-    }
-    let weeksHtml='';
-    for(let w=0;w<4;w++){
-      const sd=1+w*7,ed=w<3?sd+6:dim;
-      const wStart=new Date(currentYear,m,sd),wEnd=new Date(currentYear,m,ed);
-      let wPomo=0;
-      for(let d=new Date(wStart);d<=wEnd;d=addDays(d,1)){
-        const e=S.log[localKey(d)];
-        if(e?.n>0) wPomo+=e.n;
-      }
-      const range=`${sd}-${ed} ${mName.slice(0,3)}`;
-      const isCurrent=today>=wStart&&today<=wEnd;
-      weeksHtml+=`<div class="week-card${isCurrent?' current':''}" data-year="${currentYear}" data-month="${m}" data-week="${w}" data-wstart="${localKey(wStart)}" data-wend="${localKey(wEnd)}" tabindex="0" role="button" aria-label="Hafta ${w+1}, ${range}, ${wPomo} pomodoro"><div class="week-label">Hafta ${w+1}</div><div class="week-total">${wPomo||'—'}</div><div class="week-range">${range}</div></div>`;
-    }
-    html+=`<article class="month-card" role="listitem" aria-label="${mName} ${currentYear}"><header class="month-header"><span class="month-name">${mName}</span><div class="month-stats"><span>${mPomo} 🍅</span><span>${fmtMin(mMin)}</span></div></header><div class="month-weeks" role="list">${weeksHtml}</div></article>`;
-  }
-  const grid=$('#monthsGrid');
-  grid.innerHTML=html;
-  grid.querySelectorAll('.week-card').forEach(card=>{
-    card.onclick=()=>showWeekDetail(card);
-    card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showWeekDetail(card)}};
-  });
-}
-
-// Hafta detayı: haftanın gerçek uzunluğu kadar gün (7-10)
-function renderWeekDetail(){
-  if(!weekCtx) return;
-  const {wStart,wEnd,year,month,weekIdx}=weekCtx,todayK=todayKey();
-  let totalPomo=0,totalMin=0,daysWithData=0;
-  const days=[];
-  for(let d=new Date(wStart);d<=wEnd;d=addDays(d,1)){
-    const k=localKey(d),n=S.log[k]?.n||0,mins=n*S.cfg.pomo;
-    if(n>0){totalPomo+=n;totalMin+=mins;daysWithData++}
-    days.push({k,d,n,mins,name:DAYS[d.getDay()]});
-  }
-  const avg=daysWithData?Math.round(totalMin/daysWithData):0;
-  const maxN=Math.max(1,...days.map(x=>x.n));
-  let bars='';
-  days.forEach(x=>{
-    const h=Math.round(x.n/maxN*70)||3;
-    const tip=`${x.name} ${x.d.getDate()} ${MONTHS[x.d.getMonth()].slice(0,3)}: ${x.n} 🍅 (${fmtMin(x.mins)})`;
-    bars+=`<div class="day-bar${x.k===todayK?' today':''}${x.k===selDay?' sel':''}" data-k="${x.k}" role="button" tabindex="0" aria-label="${tip}"><span class="day-bar-value">${x.n||''}</span><span class="day-bar-graph" style="height:${h}%"></span><span class="day-bar-label">${x.name}<br>${x.d.getDate()}</span><span class="day-tooltip">${tip}</span></div>`;
-  });
-  const sel=days.find(x=>x.k===selDay);
-  const edit=sel
-    ?`<div class="day-edit"><div class="day-edit-title">${sel.name} ${sel.d.getDate()} ${MONTHS[sel.d.getMonth()]} · ${sel.n} 🍅</div><div class="day-edit-btns"><button class="small" id="dayMinus"${sel.n?'':' disabled'}>−1 pomodoro</button><button class="small" id="dayReset"${sel.n?'':' disabled'}>Günü sıfırla</button></div></div>`
-    :`<div class="day-edit" style="opacity:.7;font-size:13px">Düzenlemek için bir güne dokun</div>`;
-  $('#weekDetail').innerHTML=`<header class="week-detail-header"><span class="week-detail-title">Hafta ${weekIdx+1} · ${wStart.getDate()}-${wEnd.getDate()} ${MONTHS[month]} ${year}</span><button class="week-detail-close" id="closeWeekDetail" aria-label="Kapat">×</button></header><div class="week-detail-stats"><div class="week-detail-stat"><b>${totalPomo}</b><span>Pomodoro</span></div><div class="week-detail-stat"><b>${fmtMin(totalMin)}</b><span>Odak Süresi</span></div><div class="week-detail-stat"><b>${avg}</b><span>Günlük Ort.</span></div></div><div class="day-bars">${bars}</div>${edit}`;
-  $('#closeWeekDetail').onclick=closeWeekDetail;
-  $$('#weekDetail .day-bar').forEach(el=>{
-    const pick=()=>{selDay=selDay===el.dataset.k?null:el.dataset.k;renderWeekDetail()};
-    el.onclick=pick;
-    el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick()}};
-  });
-  if(sel&&sel.n){
-    $('#dayMinus').onclick=()=>editDay(sel.k,(S.log[sel.k]?.n||0)-1);
-    $('#dayReset').onclick=()=>{if(confirm('Bu günün tüm pomodoroları silinsin mi?')) editDay(sel.k,0)};
-  }
-}
-
-render();
-</script>
-<script>
-// Teşhis: bu cihazın OneSignal durumunu göster
-(function(){
-  const row=document.createElement('div');
-  row.className='setting-row';
-  row.innerHTML='<span class="setting-label">Bildirim durumu</span><div class="setting-control"><button class="btn-test" id="diag" type="button">Göster</button></div>';
-  $('#test').closest('.setting-row').after(row);
-  $('#diag').onclick=()=>{
-    OneSignalDeferred.push(async function(OneSignal){
-      try{
-        const ps=OneSignal.User.PushSubscription;
-        alert([
-          'İzin: '+OneSignal.Notifications.permission,
-          'Abone (optedIn): '+ps.optedIn,
-          'Abonelik ID: '+(ps.id||'yok'),
-          'External ID: '+(OneSignal.User.externalId||'yok'),
-          'Giriş uid: '+(S.user?.uid||'yok'),
-          'Bildirim ayarı: '+S.cfg.push
-        ].join('\n'));
-      }catch(e){alert('Hata: '+e.message)}
-    });
-  };
-})();
+requestNotifPerm();
 </script>
 </body>
 </html>
