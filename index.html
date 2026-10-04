@@ -685,5 +685,92 @@ function renderWeekDetail(){
 const _render=render;
 render=function(){_render();if(weekCtx) renderWeekDetail()};
 </script>
+<style>
+.day-bars{height:136px}
+.day-bar-label{line-height:1.2;text-align:center}
+</style>
+<script>
+// Aylık kartlar: 1-7, 8-14, 15-21, 22-ay sonu
+function renderYearView(){
+  $('#yearDisplay').textContent=currentYear;
+  let yearPomo=0,yearMin=0,yearDays=0;
+  for(let d=new Date(currentYear,0,1),end=new Date(currentYear,11,31,23,59,59);d<=end;d=addDays(d,1)){
+    const e=S.log[localKey(d)];
+    if(e?.n>0){yearPomo+=e.n;yearMin+=e.n*S.cfg.pomo;yearDays++}
+  }
+  $('#sYearPomo').textContent=yearPomo;
+  $('#sYearMin').textContent=fmtMin(yearMin);
+  $('#sYearAvg').textContent=yearDays?Math.round(yearMin/yearDays):0;
+
+  const today=todayDate();
+  let html='';
+  for(let m=0;m<12;m++){
+    const mName=MONTHS[m],dim=new Date(currentYear,m+1,0).getDate();
+    let mPomo=0,mMin=0;
+    for(let day=1;day<=dim;day++){
+      const e=S.log[localKey(new Date(currentYear,m,day))];
+      if(e?.n>0){mPomo+=e.n;mMin+=e.n*S.cfg.pomo}
+    }
+    let weeksHtml='';
+    for(let w=0;w<4;w++){
+      const sd=1+w*7,ed=w<3?sd+6:dim;
+      const wStart=new Date(currentYear,m,sd),wEnd=new Date(currentYear,m,ed);
+      let wPomo=0;
+      for(let d=new Date(wStart);d<=wEnd;d=addDays(d,1)){
+        const e=S.log[localKey(d)];
+        if(e?.n>0) wPomo+=e.n;
+      }
+      const range=`${sd}-${ed} ${mName.slice(0,3)}`;
+      const isCurrent=today>=wStart&&today<=wEnd;
+      weeksHtml+=`<div class="week-card${isCurrent?' current':''}" data-year="${currentYear}" data-month="${m}" data-week="${w}" data-wstart="${localKey(wStart)}" data-wend="${localKey(wEnd)}" tabindex="0" role="button" aria-label="Hafta ${w+1}, ${range}, ${wPomo} pomodoro"><div class="week-label">Hafta ${w+1}</div><div class="week-total">${wPomo||'—'}</div><div class="week-range">${range}</div></div>`;
+    }
+    html+=`<article class="month-card" role="listitem" aria-label="${mName} ${currentYear}"><header class="month-header"><span class="month-name">${mName}</span><div class="month-stats"><span>${mPomo} 🍅</span><span>${fmtMin(mMin)}</span></div></header><div class="month-weeks" role="list">${weeksHtml}</div></article>`;
+  }
+  const grid=$('#monthsGrid');
+  grid.innerHTML=html;
+  grid.querySelectorAll('.week-card').forEach(card=>{
+    card.onclick=()=>showWeekDetail(card);
+    card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showWeekDetail(card)}};
+  });
+}
+
+// Hafta detayı: haftanın gerçek uzunluğu kadar gün (7-10)
+function renderWeekDetail(){
+  if(!weekCtx) return;
+  const {wStart,wEnd,year,month,weekIdx}=weekCtx,todayK=todayKey();
+  let totalPomo=0,totalMin=0,daysWithData=0;
+  const days=[];
+  for(let d=new Date(wStart);d<=wEnd;d=addDays(d,1)){
+    const k=localKey(d),n=S.log[k]?.n||0,mins=n*S.cfg.pomo;
+    if(n>0){totalPomo+=n;totalMin+=mins;daysWithData++}
+    days.push({k,d,n,mins,name:DAYS[d.getDay()]});
+  }
+  const avg=daysWithData?Math.round(totalMin/daysWithData):0;
+  const maxN=Math.max(1,...days.map(x=>x.n));
+  let bars='';
+  days.forEach(x=>{
+    const h=Math.round(x.n/maxN*70)||3;
+    const tip=`${x.name} ${x.d.getDate()} ${MONTHS[x.d.getMonth()].slice(0,3)}: ${x.n} 🍅 (${fmtMin(x.mins)})`;
+    bars+=`<div class="day-bar${x.k===todayK?' today':''}${x.k===selDay?' sel':''}" data-k="${x.k}" role="button" tabindex="0" aria-label="${tip}"><span class="day-bar-value">${x.n||''}</span><span class="day-bar-graph" style="height:${h}%"></span><span class="day-bar-label">${x.name}<br>${x.d.getDate()}</span><span class="day-tooltip">${tip}</span></div>`;
+  });
+  const sel=days.find(x=>x.k===selDay);
+  const edit=sel
+    ?`<div class="day-edit"><div class="day-edit-title">${sel.name} ${sel.d.getDate()} ${MONTHS[sel.d.getMonth()]} · ${sel.n} 🍅</div><div class="day-edit-btns"><button class="small" id="dayMinus"${sel.n?'':' disabled'}>−1 pomodoro</button><button class="small" id="dayReset"${sel.n?'':' disabled'}>Günü sıfırla</button></div></div>`
+    :`<div class="day-edit" style="opacity:.7;font-size:13px">Düzenlemek için bir güne dokun</div>`;
+  $('#weekDetail').innerHTML=`<header class="week-detail-header"><span class="week-detail-title">Hafta ${weekIdx+1} · ${wStart.getDate()}-${wEnd.getDate()} ${MONTHS[month]} ${year}</span><button class="week-detail-close" id="closeWeekDetail" aria-label="Kapat">×</button></header><div class="week-detail-stats"><div class="week-detail-stat"><b>${totalPomo}</b><span>Pomodoro</span></div><div class="week-detail-stat"><b>${fmtMin(totalMin)}</b><span>Odak Süresi</span></div><div class="week-detail-stat"><b>${avg}</b><span>Günlük Ort.</span></div></div><div class="day-bars">${bars}</div>${edit}`;
+  $('#closeWeekDetail').onclick=closeWeekDetail;
+  $$('#weekDetail .day-bar').forEach(el=>{
+    const pick=()=>{selDay=selDay===el.dataset.k?null:el.dataset.k;renderWeekDetail()};
+    el.onclick=pick;
+    el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick()}};
+  });
+  if(sel&&sel.n){
+    $('#dayMinus').onclick=()=>editDay(sel.k,(S.log[sel.k]?.n||0)-1);
+    $('#dayReset').onclick=()=>{if(confirm('Bu günün tüm pomodoroları silinsin mi?')) editDay(sel.k,0)};
+  }
+}
+
+render();
+</script>
 </body>
 </html>
