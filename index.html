@@ -772,5 +772,29 @@ function renderWeekDetail(){
 
 render();
 </script>
+<script>
+// Teşhis: bu cihazın OneSignal durumunu göster
+(function(){
+  const row=document.createElement('div');
+  row.className='setting-row';
+  row.innerHTML='<span class="setting-label">Bildirim durumu</span><div class="setting-control"><button class="btn-test" id="diag" type="button">Göster</button></div>';
+  $('#test').closest('.setting-row').after(row);
+  $('#diag').onclick=()=>{
+    OneSignalDeferred.push(async function(OneSignal){
+      try{
+        const ps=OneSignal.User.PushSubscription;
+        alert([
+          'İzin: '+OneSignal.Notifications.permission,
+          'Abone (optedIn): '+ps.optedIn,
+          'Abonelik ID: '+(ps.id||'yok'),
+          'External ID: '+(OneSignal.User.externalId||'yok'),
+          'Giriş uid: '+(S.user?.uid||'yok'),
+          'Bildirim ayarı: '+S.cfg.push
+        ].join('\n'));
+      }catch(e){alert('Hata: '+e.message)}
+    });
+  };
+})();
+</script>
 </body>
 </html>
