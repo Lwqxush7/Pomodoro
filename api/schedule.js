@@ -1,83 +1,100 @@
+// OneSignal bildirim altyapısı — Vercel serverless fonksiyonu
+//
+// POST { title, body, endAt, externalId?, userId? }
+//   -> endAt zamanında planlanmış push bildirimi oluşturur.
+//      externalId: OneSignal external user id (Firebase uid)
+//      userId:     OneSignal user id (S.onesignalId)
+//      İkisi de yoksa tüm kullanıcılara gider (All segmenti).
+// PUT { id }
+//   -> Planlanmış bildirimi iptal eder (REST anahtarının Admin erişimde olması gerekir).
+//
+// Ortam değişkenleri (Vercel > Settings > Environment Variables):
+//   ONESIGNAL_REST_API_KEY  (zorunlu)
+//   APP_URL                 (opsiyonel, bildirime tıklandığında açılacak adres)
+
 const APP_ID = "a823248a-8bfe-48c3-b6ed-96419313a1b4";
-const ALLOWED_ORIGIN = "https://lwqxush7.github.io";
-const OS_URL = "https://onesignal.com/api/v1/notifications";
+const OS_API = "https://onesignal.com/api/v1";
+
+function targetOf({ userId, externalId } = {}) {
+  // OneSignal REST API v1: target by external user ID (Firebase UID) first for cross-device delivery
+  if (externalId) return { include_external_user_ids: [externalId] };
+  if (userId) return { include_player_ids: [userId] };
+  return { included_segments: ["All"] };
+}
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Vary", "Origin");
-
-  if (req.method === "OPTIONS") {
-    res.status(204).end();
-    return;
-  }
-  if (req.method !== "POST") {
-    res.status(405).send("POST only");
-    return;
-  }
-
-  const key = process.env.ONESIGNAL_REST_API_KEY;
-  if (!key) {
-    res.status(500).json({ error: "ONESIGNAL_REST_API_KEY yok" });
-    return;
-  }
-
-  let b = req.body || {};
-  if (typeof b === "string") {
-    try { b = JSON.parse(b); } catch { b = {}; }
-  }
-  const { uid, title, body, endAt, cancelId } = b;
-  const headers = {
-    "Content-Type": "application/json",
-    "Authorization": `Basic ${key}`
-  };
-
   try {
-    // İptal
-    if (cancelId) {
-      const r = await fetch(`${OS_URL}/${encodeURIComponent(cancelId)}?app_id=${APP_ID}`, {
-        method: "DELETE",
-        headers
+    if (!process.env.ONESIGNAL_REST_API_KEY) {
+      res.status(500).json({ error: "ONESIGNAL_REST_API_KEY ortam değişkeni tanımlı değil" });
+      return;
+    }
+    const headers = {
+      "Content-Type": "application/json",
+      "Authorization": `Basic ${process.env.ONESIGNAL_REST_API_KEY}`
+    };
+
+    // --- Planlanmış bildirim oluştur ---
+    if (req.method === "POST") {
+      const { title, body, endAt, userId, externalId } = req.body || {};
+      if (!title || !body || !endAt) {
+        res.status(400).json({ error: "title, body, endAt gerekli" });
+        return;
+      }
+      const sendAt = new Date(endAt);
+      if (isNaN(sendAt)) {
+        res.status(400).json({ error: "endAt geçerli bir tarih değil" });
+        return;
+      }
+      if (sendAt.getTime() < Date.now()) {
+        res.status(400).json({ error: "endAt geçmiş bir tarih olamaz" });
+        return;
+      }
+
+      const payload = {
+        app_id: APP_ID,
+        headings: { en: title, tr: title },
+        contents: { en: body, tr: body },
+        send_after: sendAt.toUTCString(),
+        ...targetOf({ userId, externalId })
+      };
+      if (process.env.APP_URL) payload.launch_url = process.env.APP_URL;
+
+      const r = await fetch(`${OS_API}/notifications`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload)
       });
       const data = await r.json().catch(() => ({}));
-      res.status(200).json({ ok: r.ok, result: data });
+      if (!r.ok) {
+        res.status(502).json({ error: data || { status: r.status } });
+        return;
+      }
+      res.status(200).json({ ok: true, id: data.id });
       return;
     }
 
-    // Zamanlama
-    if (!uid || !title || !body || !endAt) {
-      res.status(400).json({ error: "uid, title, body, endAt gerekli" });
-      return;
-    }
-    const when = new Date(endAt);
-    if (isNaN(when.getTime())) {
-      res.status(400).json({ error: "endAt geçersiz" });
-      return;
-    }
-    if (when.getTime() < Date.now() - 5000) {
-      res.status(400).json({ error: "endAt geçmişte" });
+    // --- Planlanmış bildirimi iptal et ---
+    if (req.method === "PUT") {
+      const { id } = req.body || {};
+      if (!id) {
+        res.status(400).json({ error: "id gerekli" });
+        return;
+      }
+      const r = await fetch(`${OS_API}/notifications/${id}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ q: "" })
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        res.status(502).json({ error: data || { status: r.status } });
+        return;
+      }
+      res.status(200).json({ ok: true });
       return;
     }
 
-    const r = await fetch(OS_URL, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        app_id: APP_ID,
-        target_channel: "push",
-        include_aliases: { external_id: [String(uid)] },
-        headings: { en: String(title), tr: String(title) },
-        contents: { en: String(body), tr: String(body) },
-        send_after: when.toUTCString()
-      })
-    });
-    const data = await r.json();
-    if (!r.ok || data.errors) {
-      res.status(502).json({ error: data });
-      return;
-    }
-    res.status(200).json({ ok: true, id: data.id });
+    res.status(405).send("POST (planla) veya PUT (iptal) kullan");
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
