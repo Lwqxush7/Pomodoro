@@ -10,6 +10,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 window.firebaseConfig = {
   apiKey: "AIzaSyCwklq5EWcoW3AMLgtB0MzLDap6Ca21baI",
@@ -23,6 +24,7 @@ window.firebaseConfig = {
 const app = initializeApp(window.firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+const db = getFirestore(app);
 
 // Global expose - ana script erişebilsin
 window.firebaseAuth = auth;
@@ -30,6 +32,12 @@ window.googleProvider = provider;
 window.firebaseSignInWithPopup = signInWithPopup;
 window.firebaseSignOut = signOut;
 window.firebaseOnAuthStateChanged = onAuthStateChanged;
+window.firebaseDb = db;
+window.firebaseDoc = doc;
+window.firebaseSetDoc = setDoc;
+window.firebaseGetDoc = getDoc;
+window.firebaseOnSnapshot = onSnapshot;
+window.firebaseServerTimestamp = serverTimestamp;
 
 // Firebase hazır olduğunda global event tetikle
 window.dispatchEvent(new Event('firebase-ready'));
@@ -602,9 +610,11 @@ function initFirebaseAuth(){
     if(user){
       S.user={name:user.displayName,email:user.email,uid:user.uid,photo:user.photoURL};
       osAuthLink(user); // OneSignal external user id = Firebase uid
+      initFirestoreSync(user.uid);
     }else{
       S.user=null;
       osAuthLink(null);
+      initFirestoreSync(null); // clears listener
     }
     S.save();renderAuth();
   });
@@ -637,6 +647,136 @@ function initFirebaseAuth(){
     }catch(e){console.error('Logout error',e)}
   };
 }
+
+// --- Firestore Sync ---
+let fsUnsubscribe = null;
+let _applyingRemote = false;
+
+function initFirestoreSync(uid){
+  if(fsUnsubscribe){ fsUnsubscribe(); fsUnsubscribe=null; }
+  if(!uid) return;
+
+  const userDocRef = window.firebaseDoc(window.firebaseDb, 'users', uid);
+  fsUnsubscribe = window.firebaseOnSnapshot(userDocRef, async (snap)=>{
+    if(!snap.exists()){
+      // First time: push local state to Firestore
+      await syncToFirestore(uid, true);
+      return;
+    }
+    const data = snap.data();
+    await applyRemoteState(data);
+  }, (err)=>{
+    console.error('Firestore sync error:', err);
+  });
+}
+
+async function syncToFirestore(uid, force=false){
+  if(!uid) return;
+  const userDocRef = window.firebaseDoc(window.firebaseDb, 'users', uid);
+
+  // Prepare timer state for sync
+  const timerState = {
+    mode: S.t.mode,
+    left: S.t.left,
+    running: S.t.running,
+    total: S.t.total,
+    lastUpdate: S.t.lastUpdate,
+    // When running, store endAt so other devices can calculate remaining accurately
+    endAt: S.t.running ? S.t.lastUpdate + S.t.left * 1000 : null
+  };
+
+  const payload = {
+    timer: timerState,
+    log: S.log,
+    cfg: S.cfg,
+    lastSynced: window.firebaseServerTimestamp()
+  };
+
+  await window.firebaseSetDoc(userDocRef, payload, { merge: true });
+}
+
+async function applyRemoteState(data){
+  _applyingRemote = true;
+  try{
+    // Merge remote timer state
+    if(data.timer){
+      const remote = data.timer;
+      const now = Date.now();
+
+      // If remote timer is running, recalculate left based on endAt to prevent drift
+      if(remote.running && remote.endAt){
+        const remaining = Math.max(0, Math.ceil((remote.endAt - now) / 1000));
+        S.t.left = remaining;
+        S.t.lastUpdate = now;
+        // If timer ended while we were offline, trigger completion
+        if(remaining <= 0){
+          completeCycle();
+          return;
+        }
+      }else{
+        S.t.left = remote.left;
+        S.t.lastUpdate = remote.lastUpdate || now;
+      }
+
+      S.t.mode = remote.mode;
+      S.t.running = remote.running;
+      S.t.total = remote.total || 0;
+    }
+
+    // Merge remote log (daily counts)
+    if(data.log){
+      S.log = { ...S.log, ...data.log };
+    }
+
+    // Optionally sync settings (cfg) - merge but keep local overrides for UI prefs
+    if(data.cfg){
+      S.cfg = { ...DEF, ...S.cfg, ...data.cfg };
+    }
+
+    S.save();
+    render();
+  }finally{
+    _applyingRemote = false;
+  }
+}
+
+// Modified functions to sync after local changes
+const originalSave = S.save;
+S.save = function(){
+  originalSave.call(this);
+  if(S.user?.uid && !_applyingRemote){
+    // Debounce sync to Firestore
+    clearTimeout(this._syncTimeout);
+    this._syncTimeout = setTimeout(() => syncToFirestore(S.user.uid), 300);
+  }
+};
+
+// Need to ensure setMode calls save (it already does via S.save())
+const originalSetMode = setMode;
+setMode = function(m, reset){
+  originalSetMode(m, reset);
+  if(S.user?.uid) syncToFirestore(S.user.uid);
+};
+
+const originalStart = start;
+start = function(){
+  originalStart();
+  if(S.user?.uid) syncToFirestore(S.user.uid);
+};
+
+const originalPause = pause;
+pause = function(){
+  originalPause();
+  if(S.user?.uid) syncToFirestore(S.user.uid);
+};
+
+const originalCompleteCycle = completeCycle;
+completeCycle = function(){
+  originalCompleteCycle();
+  if(S.user?.uid) syncToFirestore(S.user.uid);
+};
+
+// Also sync on settings changes (handled by S.save via debounce)
 
 // --- OneSignal (v16 SDK) ---
 const OS_APP_ID="a823248a-8bfe-48c3-b6ed-96419313a1b4";
