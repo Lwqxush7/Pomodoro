@@ -133,7 +133,13 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 /* Tooltip for day detail */
 .day-tooltip{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.9);color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;white-space:nowrap;z-index:100;pointer-events:none;opacity:0;transition:opacity .15s;margin-bottom:6px}
 .day-bar:hover .day-tooltip{opacity:1}
-.day-bar{position:relative}
+.day-bar{position:relative;cursor:pointer}
+.day-menu{position:absolute;z-index:300;background:#fff;color:#222;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:6px;gap:6px}
+.day-menu.shown{display:flex}
+.day-menu button{background:#2b59c3;color:#fff;border:0;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.day-menu button:hover{background:#1e4aa3}
+.day-menu button[data-act=reset]{background:#e5e5e5;color:#222}
+.day-menu button[data-act=reset]:hover{background:#d5d5d5}
 
 /* Settings Dialog - Improved */
 dialog{border:0;border-radius:14px;padding:0;width:min(400px,92vw);color:#222;background:#fff;box-shadow:0 20px 40px rgba(0,0,0,.2)}
@@ -271,6 +277,7 @@ dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
 <script>
 const DEF={pomo:25,short:5,long:15,every:4,autoB:true,autoP:false,vol:.7,push:false};
 const DAYS=['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+const DAYSF=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
 const MONTHS=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 
 const $=s=>document.querySelector(s);
@@ -423,21 +430,14 @@ function renderYearView(){
       if(e?.n>0){mPomo+=e.n; mMin+=e.n*S.cfg.pomo;}
     }
     
-    const firstMon=startOfWeek(mStart);
+    const dim=mEnd.getDate();
     let weeksHtml='';
-    
+
     for(let w=0; w<4; w++){
-      const wStart=addDays(firstMon,w*7);
-      const wEnd=addDays(wStart,6);
-      
-      if(wEnd<mStart || wStart>mEnd){
-        weeksHtml+=`<div class="week-card empty"><div class="week-label">Hafta ${w+1}</div><div class="week-total">—</div><div class="week-range">Bu ayda yok</div></div>`;
-        continue;
-      }
-      
-      const dispStart=new Date(Math.max(wStart,mStart));
-      const dispEnd=new Date(Math.min(wEnd,mEnd));
-      const range=`${dispStart.getDate()}-${dispEnd.getDate()} ${mName.slice(0,3)}`;
+      const wStart=new Date(currentYear,m,w*7+1);
+      const wLastDay=w===3?dim:Math.min((w+1)*7,dim);
+      const wEnd=new Date(currentYear,m,wLastDay);
+      const range=`${w*7+1}-${wLastDay} ${mName.slice(0,3)}`;
       
       let wPomo=0, wMin=0;
       for(let d=new Date(wStart); d<=wEnd; d=addDays(d,1)){
@@ -496,32 +496,127 @@ function renderWeekDetail(wStart,wEnd,year,month,weekIdx){
   
   let totalPomo=0, totalMin=0, daysWithData=0;
   const daysData=[];
-  
-  for(let i=0;i<7;i++){
-    const d=addDays(wStart,i);
+
+  for(let d=new Date(wStart); d<=wEnd; d=addDays(d,1)){
     const k=localKey(d);
     const e=S.log[k]||{n:0};
     const mins=e.n*S.cfg.pomo;
     if(e.n>0){totalPomo+=e.n; totalMin+=mins; daysWithData++;}
-    daysData.push({name:DAYS[d.getDay()],date:d,count:e.n,minutes:mins,isToday:k===todayK,key:k});
+    daysData.push({name:DAYS[d.getDay()],fullName:DAYSF[d.getDay()],date:new Date(d),count:e.n,minutes:mins,isToday:k===todayK,key:k});
   }
-  
+
   const avg=daysWithData?Math.round(totalMin/daysWithData):0;
   const maxCount=Math.max(1,...daysData.map(d=>d.count));
-  
+
   let barsHtml='';
   daysData.forEach(day=>{
     const h=Math.round((day.count/maxCount)*70)||3;
     const dm=day.minutes>=60?`${Math.floor(day.minutes/60)} sa ${day.minutes%60} dk`:day.minutes+' dk';
-    const tip=`${day.name} ${day.date.getDate()} ${MONTHS[month].slice(0,3)}: ${day.count} 🍅 (${dm})`;
-    barsHtml+=`<div class="day-bar${day.count===0?' z':''}${day.isToday?' today':''}"><span class="day-bar-value">${day.count||''}</span><span class="day-bar-graph" style="height:${h}%"></span><span class="day-bar-label">${day.name}</span><span class="day-tooltip">${tip}</span></div>`;
+    const fullDateLabel=`${day.date.getDate()} ${MONTHS[month]} ${day.fullName}`;
+    const tip=`${fullDateLabel}: ${day.count} 🍅 (${dm})`;
+    barsHtml+=`<div class="day-bar${day.count===0?' z':''}${day.isToday?' today':''}" data-key="${day.key}" aria-label="${fullDateLabel}"><span class="day-bar-value">${day.count||''}</span><span class="day-bar-graph" style="height:${h}%"></span><span class="day-bar-label">${day.date.getDate()} ${day.name}</span><span class="day-tooltip">${tip}</span></div>`;
   });
   
   detail.innerHTML=`<header class="week-detail-header"><span class="week-detail-title">Hafta ${weekIdx+1} · ${wStart.getDate()}-${wEnd.getDate()} ${MONTHS[month]} ${year}</span><button class="week-detail-close" id="closeWeekDetail">×</button></header><div class="week-detail-stats"><div class="week-detail-stat"><b>${totalPomo}</b><span>Pomodoro</span></div><div class="week-detail-stat"><b>${totalMin>=60?Math.floor(totalMin/60)+' sa '+(totalMin%60)+' dk':totalMin+' dk'}</b><span>Odak Süresi</span></div><div class="week-detail-stat"><b>${avg}</b><span>Günlük Ort.</span></div></div><div class="day-bars">${barsHtml}</div>`;
   $('#closeWeekDetail').onclick=closeWeekDetail;
+
+  // Day menu: bind click on day-bars for mini menu
+  detail.querySelector('.day-bars').addEventListener('click', e=>{
+    const bar=e.target.closest('.day-bar');
+    if(!bar) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const key=bar.dataset.key;
+    if(!key) return;
+    showDayMenu(bar, key);
+  });
+
+  // Close week detail and hide any pending day menu
+  document.addEventListener('click', e=>{
+    if(!detail.contains(e.target)) {
+      hideDayMenu();
+    }
+  }, {once:true});
+
+  window.addEventListener('focus', hideDayMenu, {once:true});
+}
+
+// Mini menu state
+let activeDayMenu = null;
+
+function showDayMenu(bar, key){
+  hideDayMenu();
+
+  const menu = document.createElement('div');
+  menu.className = 'day-menu shown';
+  menu.innerHTML = `
+    <button type="button" data-act="reset">Hepsini Sıfırla</button>
+    <button type="button" data-act="dec">-1 Pomodoro</button>
+  `;
+
+  document.body.appendChild(menu);
+  activeDayMenu = menu;
+
+  // Position menu relative to the bar
+  const r = bar.getBoundingClientRect();
+  const left = Math.max(8, Math.min(window.innerWidth - menu.offsetWidth - 8, r.left + (r.width / 2) - (menu.offsetWidth / 2) + window.scrollX));
+  let top = r.top + window.scrollY - menu.offsetHeight - 8;
+  if(top < window.scrollY + 8){
+    top = r.bottom + window.scrollY + 8; // flip downwards if not enough space on top
+  }
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+
+  // Handle menu actions
+  menu.onclick = e => {
+    const act = e.target.dataset.act;
+    if(!act) return;
+    e.stopPropagation();
+
+    const curr = S.log[key] || { n: 0 };
+    if(act === 'dec'){
+      curr.n = Math.max(0, curr.n - 1);
+    } else if(act === 'reset'){
+      curr.n = 0;
+    }
+    S.log[key] = curr;
+    S.save();
+
+    hideDayMenu();
+    render();
+
+    // Re-render the week view to reflect immediate change
+    if(selectedWeekStart){
+      const wEnd = addDays(selectedWeekStart, Math.min(6, new Date(currentYear, parseLocal(localKey(selectedWeekStart)).getMonth()+1, 0).getDate() - selectedWeekStart.getDate()));
+      // Get parameters from parent elements
+      const card = document.querySelector(`.week-card[data-wstart="${localKey(selectedWeekStart)}"]`);
+      if(card){
+        showWeekDetail(card);
+      }
+    }
+  };
+
+  // Close on click outside
+  setTimeout(() => {
+    const closeListener = e => {
+      if(!menu.contains(e.target) && !bar.contains(e.target)){
+        hideDayMenu();
+        document.removeEventListener('click', closeListener);
+      }
+    };
+    document.addEventListener('click', closeListener);
+  }, 10);
+}
+
+function hideDayMenu(){
+  if(activeDayMenu){
+    activeDayMenu.remove();
+    activeDayMenu = null;
+  }
 }
 
 function closeWeekDetail(){
+  hideDayMenu();
   currentView='year';
   $('#weekDetailView').classList.add('hidden');
   $('#yearView').classList.remove('hidden');
