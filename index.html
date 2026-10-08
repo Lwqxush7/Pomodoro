@@ -201,7 +201,6 @@ dialog::backdrop{background:rgba(0,0,0,.45);backdrop-filter:blur(4px)}
         <button class="small" id="incMin" aria-label="Sayaç artır">+1</button>
       </div>
       <div class="msg" id="msg">Odaklanma zamanı!</div>
-      <button class="small" id="resetFocus" aria-label="Odaklanma zamanını sıfırla">Odaklanma Zamanını Sıfırla</button>
     </div>
   </main>
 
@@ -1107,7 +1106,6 @@ $('#reset').onclick=()=>setMode(S.t.mode,true);
 $('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
 $('#incMin').onclick=()=>{S.t.total++;S.save();render();};
 $('#decMin').onclick=()=>{S.t.total=Math.max(0,S.t.total-1);S.save();render();};
-$('#resetFocus').onclick=()=>{S.t.total=0;S.save();render();};
 $$('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m,false));
 
 // --- Init: Firebase ready event'ini bekle ---
