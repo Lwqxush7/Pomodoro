@@ -315,7 +315,7 @@ let selectedWeekStart = null;
 // --- Storage ---
 const S={
   cfg:{...DEF},
-  t:{mode:'pomo',left:DEF.pomo*60,running:false,total:0,lastUpdate:0},
+  t:{mode:'pomo',left:DEF.pomo*60,running:false,total:0,lastUpdate:0,endAt:null},
   log:{},
   user:null,
   onesignalId:null,
@@ -631,41 +631,56 @@ function setMode(m,reset=true){
   cancelScheduledPush();
   S.t.mode=m;
   S.t.left=dur(m);
-  S.t.total=0;
+  if(reset) S.t.total=0;
   S.t.running=false;
+  S.t.endAt=null;
   S.t.lastUpdate=Date.now();
   S.save();render();
 }
 function tick(){
   if(!S.t.running) return;
   const now=Date.now();
-  const delta=Math.floor((now-S.t.lastUpdate)/1000);
-  if(delta>=1){
-    S.t.left=Math.max(0,S.t.left-delta);
-    S.t.lastUpdate=now;
-    if(S.t.left<=0) completeCycle();
+  if(!S.t.endAt) S.t.endAt = now + S.t.left * 1000;
+  const remaining = Math.max(0, Math.ceil((S.t.endAt - now) / 1000));
+  S.t.left = remaining;
+  S.t.lastUpdate = now;
+  if(remaining <= 0){
+    completeCycle();
     render();
+    return;
   }
+  render();
 }
 function completeCycle(){
+  const isPomo = S.t.mode==='pomo';
   S.t.running=false;
-  S.t.total++;
-  const k=todayKey();
-  S.log[k]={n:(S.log[k]||{n:0}).n+1};
-  const next=S.t.mode==='pomo'?(S.t.total%S.cfg.every===0?'long':'short'):'pomo';
-  const autoContinue=(S.t.mode==='pomo'&&S.cfg.autoB)||(S.t.mode!=='pomo'&&S.cfg.autoP);
+  S.t.endAt=null;
+  if(isPomo){
+    S.t.total++;
+    const k=todayKey();
+    S.log[k]={n:(S.log[k]||{n:0}).n+1};
+  }
+  const next=isPomo?(S.t.total%S.cfg.every===0?'long':'short'):'pomo';
+  const autoContinue=(isPomo&&S.cfg.autoB)||(!isPomo&&S.cfg.autoP);
   S.t.mode=next;
   S.t.left=dur(next);
   S.t.running=autoContinue;
+  if(autoContinue){
+    S.t.endAt=Date.now()+S.t.left*1000;
+  }
   S.t.lastUpdate=Date.now();
   cancelScheduledPush(); // süresi dolan planlı bildirimi iptal et
   beep();
-  notify(S.t.mode==='pomo'?'Mola bitti, odaklan!':'Odaklanma bitti, mola!');
+  notify(isPomo? 'Mola bitti, odaklan!':'Odaklanma bitti, mola!');
+  if(autoContinue){
+    scheduleEndPush();
+  }
   S.save();
 }
 function start(){
   if(S.t.left<=0) S.t.left=dur(S.t.mode);
   S.t.running=true;
+  S.t.endAt=Date.now()+S.t.left*1000;
   S.t.lastUpdate=Date.now();
   unlockAudio();
   S.save();render();
@@ -673,6 +688,7 @@ function start(){
 }
 function pause(){
   S.t.running=false;
+  S.t.endAt=null;
   cancelScheduledPush();
   S.save();render();
 }
@@ -797,12 +813,15 @@ async function applyRemoteState(data){
       const remote = data.timer;
       const now = Date.now();
 
+      // Preserve endAt if available, otherwise set from left+duration
+      if(remote.endAt) S.t.endAt = remote.endAt;
+      else if(remote.running) S.t.endAt = remote.lastUpdate + remote.left * 1000;
+
       // If remote timer is running, recalculate left based on endAt to prevent drift
       if(remote.running && remote.endAt){
         const remaining = Math.max(0, Math.ceil((remote.endAt - now) / 1000));
         S.t.left = remaining;
         S.t.lastUpdate = now;
-        // If timer ended while we were offline, trigger completion
         if(remaining <= 0){
           completeCycle();
           return;
@@ -815,6 +834,9 @@ async function applyRemoteState(data){
       S.t.mode = remote.mode;
       S.t.running = remote.running;
       S.t.total = remote.total || 0;
+      if(S.t.endAt){
+        S.t.lastUpdate = Date.now();
+      }
     }
 
     // Merge remote log (daily counts)
