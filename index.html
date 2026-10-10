@@ -130,17 +130,23 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .day-bar.today .day-bar-graph{background:linear-gradient(180deg,#ffd600 0%,#ffb300 100%)}
 .day-bar-label{font-size:10px;opacity:.8;white-space:nowrap}
 
-/* Tooltip for day detail */
-.day-tooltip{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--bg);color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;white-space:nowrap;z-index:200;pointer-events:none;opacity:0;transition:opacity .15s;margin-bottom:6px}
+/* Tooltip for day detail - mobile optimized */
+.day-bars{position:relative}
+.day-tooltip{position:absolute;bottom:130%;left:50%;transform:translateX(-50%);background:var(--bg);color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;white-space:nowrap;z-index:300;pointer-events:none;opacity:0;transition:opacity .15s;margin-bottom:8px;max-width:160px;text-align:center;word-break:break-word;line-height:1.4}
 .day-bar:hover .day-tooltip{opacity:1}
-.day-bar-active .day-tooltip{display:none;}
-.day-bar{position:relative;cursor:pointer}
-.day-menu{position:absolute;z-index:300;background:#fff;color:#222;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:6px;gap:6px}
-.day-menu.shown{display:flex}
-.day-menu button{background:#2b59c3;color:#fff;border:0;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.day-bar-active .day-tooltip{display:none}
+.day-menu{position:absolute;z-index:400;background:#fff;color:#222;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:8px;gap:6px;min-width:110px;white-space:nowrap;max-width:280px}
+.day-menu button{background:#2b59c3;color:#fff;border:0;border-radius:6px;padding:6px 8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
 .day-menu button:hover{background:#1e4aa3}
 .day-menu button[data-act=reset]{background:#e5e5e5;color:#222}
 .day-menu button[data-act=reset]:hover{background:#d5d5d5}
+@media (max-width: 600px){
+  .day-bars{height:110px}
+  .day-bar{font-size:9px}
+  .day-bar-value{font-size:10px}
+  .day-bar-label{font-size:9px}
+  .day-tooltip{font-size:11px;padding:6px 8px;max-width:120px}
+}
 
 /* Settings Dialog - Improved */
 dialog{border:0;border-radius:14px;padding:0;width:min(400px,92vw);color:#222;background:#fff;box-shadow:0 20px 40px rgba(0,0,0,.2)}
@@ -571,12 +577,15 @@ function showDayMenu(bar, key){
   document.body.appendChild(menu);
   activeDayMenu = menu;
 
-  // Position menu relative to the bar
+  // Position menu relative to the bar - mobile-friendly
   const r = bar.getBoundingClientRect();
-  const left = Math.max(8, Math.min(window.innerWidth - menu.offsetWidth - 8, r.left + (r.width / 2) - (menu.offsetWidth / 2) + window.scrollX));
-  let top = r.top + window.scrollY - menu.offsetHeight - 8;
-  if(top < window.scrollY + 8){
-    top = r.bottom + window.scrollY + 8; // flip downwards if not enough space on top
+  const margin = 10;
+  const maxRight = window.innerWidth - margin - menu.offsetWidth;
+  const newLeft = r.left + (r.width / 2) - (menu.offsetWidth / 2) + window.scrollX;
+  const left = Math.max(margin, Math.min(maxRight, newLeft));
+  let top = r.top + window.scrollY - menu.offsetHeight - margin;
+  if(top < window.scrollY + margin){
+    top = r.bottom + window.scrollY + margin;
   }
   menu.style.left = left + 'px';
   menu.style.top = top + 'px';
