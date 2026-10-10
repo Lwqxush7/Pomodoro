@@ -1144,8 +1144,8 @@ $('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')closeSettings();})
 $('#go').onclick=()=>{S.t.running?pause():start();};
 $('#reset').onclick=()=>setMode(S.t.mode,true);
 $('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
-$('#incMin').onclick=()=>{const todayKeyVal=todayKey();S.log[todayKeyVal]={n:(S.log[todayKeyVal]||{n:0}).n+1};S.t.total++;S.save();render();};
-$('#decMin').onclick=()=>{const todayKeyVal=todayKey();const curr=S.log[todayKeyVal]||{n:0};if(curr.n>0){curr.n--;S.t.total--;S.log[todayKeyVal]=curr;}S.save();render();};
+$('#incMin').onclick=()=>{const todayKeyVal=todayKey();S.log[todayKeyVal]={n:(S.log[todayKeyVal]||{n:0}).n+1,pomo:S.cfg.pomo, date:todayKeyVal};S.t.total++;S.save();render();};
+$('#decMin').onclick=()=>{const todayKeyVal=todayKey();const curr=S.log[todayKeyVal]||{n:0};if(curr.n>0){curr.n--;curr.pomo=S.cfg.pomo;S.t.total--;S.log[todayKeyVal]=curr;}S.save();render();};
 $$('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m,false));
 
 // --- Init: Firebase ready event'ini bekle ---
