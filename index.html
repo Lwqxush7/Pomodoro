@@ -133,7 +133,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 /* Tooltip for day detail */
 .day-tooltip{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--bg);color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;white-space:nowrap;z-index:200;pointer-events:none;opacity:0;transition:opacity .15s;margin-bottom:6px}
 .day-bar:hover .day-tooltip{opacity:1}
-.day-bar-active .day-tooltip{opacity:0}
+.day-bar-active .day-tooltip{display:none;}
 .day-bar{position:relative;cursor:pointer}
 .day-menu{position:absolute;z-index:300;background:#fff;color:#222;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:6px;gap:6px}
 .day-menu.shown{display:flex}
