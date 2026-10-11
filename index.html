@@ -326,6 +326,21 @@ const S={
   log:{},
   user:null,
   onesignalId:null,
+  normalizeLog(log){
+    if(!log || typeof log !== 'object') return {};
+    for(const k of Object.keys(log)){
+      const e = log[k];
+      if(!e || typeof e !== 'object') continue;
+      if(!Array.isArray(e.sessions)){
+        const count = typeof e.n === 'number' ? Math.max(0, e.n) : 0;
+        const pLen = typeof e.pomo === 'number' && e.pomo > 0 ? e.pomo : 25;
+        e.sessions = Array(count).fill(pLen);
+      }
+      e.n = e.sessions.length;
+      if(!e.date) e.date = k;
+    }
+    return log;
+  },
   load(){
     try{
       const raw=localStorage.getItem('pomo_v2');
@@ -333,7 +348,7 @@ const S={
       const d=JSON.parse(raw);
       if(d.cfg) this.cfg={...DEF,...d.cfg};
       if(d.t) this.t={...this.t,...d.t};
-      if(d.log) this.log=d.log;
+      if(d.log) this.log=this.normalizeLog(d.log);
       if(d.user) this.user=d.user;
       if(d.onesignalId) this.onesignalId=d.onesignalId;
     }catch(e){console.error('Load error',e)}
@@ -410,12 +425,16 @@ function updateSwitch(id, value){
 // --- Year View ---
 // Helper to get duration for a day (handles historical pomodoro counts)
 function dayPomodoroDuration(count, dateObj=null){
-  // If we have historical duration data for this date, use it
   if(dateObj){
     const key = localKey(dateObj);
     const entry = S.log[key];
-    if(entry && entry.pomo){
-      return count * entry.pomo;
+    if(entry){
+      if(Array.isArray(entry.sessions)){
+        return entry.sessions.reduce((acc, cur) => acc + (Number(cur) || 0), 0);
+      }
+      if(entry.pomo){
+        return count * entry.pomo;
+      }
     }
   }
   return count * S.cfg.pomo;
@@ -518,8 +537,8 @@ function renderWeekDetail(wStart,wEnd,year,month,weekIdx){
 
   for(let d=new Date(wStart); d<=wEnd; d=addDays(d,1)){
     const k=localKey(d);
-    const e=S.log[k]||{n:0};
-    const mins=e.n*S.cfg.pomo;
+    const e=S.log[k]||{n:0,sessions:[]};
+    const mins=dayPomodoroDuration(e.n, d);
     if(e.n>0){totalPomo+=e.n; totalMin+=mins; daysWithData++;}
     daysData.push({name:DAYS[d.getDay()],fullName:DAYSF[d.getDay()],date:new Date(d),count:e.n,minutes:mins,isToday:k===todayK,key:k});
   }
@@ -596,16 +615,26 @@ function showDayMenu(bar, key){
     if(!act) return;
     e.stopPropagation();
 
-    const curr = S.log[key] || { n: 0 };
+    const curr = S.log[key] || { n: 0, sessions: [], date: key };
+    if(!Array.isArray(curr.sessions)){
+      const pLen = typeof curr.pomo === 'number' && curr.pomo > 0 ? curr.pomo : 25;
+      curr.sessions = Array(curr.n || 0).fill(pLen);
+    }
+
     if(act === 'dec'){
-      const prev = curr.n;
-      curr.n = Math.max(0, prev - 1);
-      curr.pomo = S.cfg.pomo;
+      const prev = curr.sessions.length;
+      if(prev > 0){
+        curr.sessions.pop();
+      }
+      curr.n = curr.sessions.length;
+      delete curr.pomo;
       if(key===todayKey() && curr.n < prev){S.t.total=Math.max(0,S.t.total-1);}
     } else if(act === 'reset'){
+      curr.sessions = [];
       curr.n = 0;
-      curr.pomo = S.cfg.pomo;
+      delete curr.pomo;
     }
+    curr.date = key;
     S.log[key] = curr;
     S.save();
 
@@ -684,8 +713,16 @@ function completeCycle(){
   if(isPomo){
     S.t.total++;
     const k=todayKey();
-    const curr=S.log[k]||{n:0};
-    S.log[k]={n:curr.n+1, pomo:S.cfg.pomo, date:key};
+    const curr=S.log[k]||{n:0,sessions:[],date:k};
+    if(!Array.isArray(curr.sessions)){
+      const pLen = typeof curr.pomo === 'number' && curr.pomo > 0 ? curr.pomo : 25;
+      curr.sessions = Array(curr.n || 0).fill(pLen);
+    }
+    curr.sessions.push(S.cfg.pomo);
+    curr.n = curr.sessions.length;
+    curr.date = k;
+    delete curr.pomo;
+    S.log[k]=curr;
   }
   const next=isPomo?(S.t.total%S.cfg.every===0?'long':'short'):'pomo';
   const autoContinue=(isPomo&&S.cfg.autoB)||(!isPomo&&S.cfg.autoP);
@@ -868,7 +905,7 @@ async function applyRemoteState(data){
 
     // Merge remote log (daily counts)
     if(data.log){
-      S.log = { ...S.log, ...data.log };
+      S.log = S.normalizeLog({ ...S.log, ...data.log });
     }
 
     // Optionally sync settings (cfg) - merge but keep local overrides for UI prefs
@@ -1153,8 +1190,40 @@ $('#dlg').addEventListener('click',e=>{if(e.target.id==='dlg')closeSettings();})
 $('#go').onclick=()=>{S.t.running?pause():start();};
 $('#reset').onclick=()=>setMode(S.t.mode,true);
 $('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
-$('#incMin').onclick=()=>{const todayKeyVal=todayKey();S.log[todayKeyVal]={n:(S.log[todayKeyVal]||{n:0}).n+1,pomo:S.cfg.pomo, date:todayKeyVal};S.t.total++;S.save();render();};
-$('#decMin').onclick=()=>{const todayKeyVal=todayKey();const curr=S.log[todayKeyVal]||{n:0};if(curr.n>0){curr.n--;curr.pomo=S.cfg.pomo;S.t.total--;S.log[todayKeyVal]=curr;}S.save();render();};
+$('#incMin').onclick=()=>{
+  const todayKeyVal=todayKey();
+  const curr=S.log[todayKeyVal]||{n:0,sessions:[],date:todayKeyVal};
+  if(!Array.isArray(curr.sessions)){
+    const pLen=typeof curr.pomo==='number'&&curr.pomo>0?curr.pomo:25;
+    curr.sessions=Array(curr.n||0).fill(pLen);
+  }
+  curr.sessions.push(S.cfg.pomo);
+  curr.n=curr.sessions.length;
+  curr.date=todayKeyVal;
+  delete curr.pomo;
+  S.log[todayKeyVal]=curr;
+  S.t.total++;
+  S.save();
+  render();
+};
+$('#decMin').onclick=()=>{
+  const todayKeyVal=todayKey();
+  const curr=S.log[todayKeyVal]||{n:0,sessions:[],date:todayKeyVal};
+  if(!Array.isArray(curr.sessions)){
+    const pLen=typeof curr.pomo==='number'&&curr.pomo>0?curr.pomo:25;
+    curr.sessions=Array(curr.n||0).fill(pLen);
+  }
+  if(curr.sessions.length>0){
+    curr.sessions.pop();
+    curr.n=curr.sessions.length;
+    curr.date=todayKeyVal;
+    delete curr.pomo;
+    S.t.total=Math.max(0,S.t.total-1);
+    S.log[todayKeyVal]=curr;
+  }
+  S.save();
+  render();
+};
 $$('.tab').forEach(b=>b.onclick=()=>setMode(b.dataset.m,false));
 
 // --- Init: Firebase ready event'ini bekle ---
