@@ -114,8 +114,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 /* Week Detail View */
 .week-detail{background:rgba(255,255,255,.12);border-radius:12px;padding:16px;margin-top:16px;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-.week-detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.15)}
-.week-detail-title{font-size:16px;font-weight:700}
+.week-detail{position:relative}
+.week-detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.15);position:relative;z-index:1}
+.week-detail-title{flex:1;text-align:left;font-size:16px;font-weight:700}
 .week-detail-close{background:none;border:0;color:#fff;font-size:24px;cursor:pointer;opacity:.7;padding:0 8px}
 .week-detail-close:hover{opacity:1}
 .week-detail-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center;margin-bottom:14px}
@@ -133,9 +134,9 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .day-bar-label{font-size:10px;opacity:.8;white-space:nowrap}
 
 /* Tooltip for day detail - mobile optimized */
-.day-bars{position:relative}
-.day-tooltip{position:absolute;bottom:130%;left:50%;transform:translateX(-50%);background:var(--bg);color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;white-space:nowrap;z-index:300;pointer-events:none;opacity:0;transition:opacity .15s;margin-bottom:8px;max-width:160px;text-align:center;word-break:break-word;line-height:1.4}
-.day-bar:hover .day-tooltip{opacity:1}
+.day-bars{display:flex;align-items:flex-end;justify-content:space-between;gap:6px;height:120px;background:rgba(255,255,255,.08);border-radius:12px;padding:12px 8px 8px;width:100%}
+.day-tooltip{position:absolute;top:22px;left:50%;transform:translateX(-50%);background:var(--bg);color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;white-space:nowrap;z-index:300;pointer-events:none;opacity:0;transition:opacity .15s;max-width:90%;text-align:center;word-break:break-word;line-height:1.4;overflow-wrap:break-word;}
+.day-bar:hover .day-tooltip{opacity:1;}
 .day-bar-active .day-tooltip{display:none}
 .day-menu{position:absolute;z-index:400;background:#fff;color:#222;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:8px;gap:6px;min-width:110px;white-space:nowrap;max-width:280px}
 .day-menu button{background:#2b59c3;color:#fff;border:0;border-radius:6px;padding:6px 8px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
@@ -147,7 +148,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
   .day-bar{font-size:9px}
   .day-bar-value{font-size:10px}
   .day-bar-label{font-size:9px}
-  .day-tooltip{font-size:11px;padding:6px 8px;max-width:120px}
+  .day-tooltip{font-size:11px;padding:6px 8px;top:24px;max-width:80%;}
 }
 
 /* Settings Dialog - Improved */
