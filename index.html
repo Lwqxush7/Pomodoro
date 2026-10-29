@@ -1519,10 +1519,11 @@ const osOn=()=>window.OneSignal&&typeof window.OneSignal.init==='function';
 async function osSubscribed(){
   if(!osOn()) return false;
   try{
-    const p=OneSignal.User?.Push;
-    if(p&&p.optedIn!==undefined) return !!(await p.optedIn);
-    if(typeof OneSignal.isSubscriptionPromoted==='function') return !!(await OneSignal.isSubscriptionPromoted());
-    if(typeof OneSignal.getPermissionState==='function') return !!(await OneSignal.getPermissionState());
+    const sub=OneSignal.User?.PushSubscription;
+    if(sub){
+      const opted=sub.optedIn;
+      return typeof opted==='boolean'?opted:!!(await opted);
+    }
   }catch(e){console.warn('osSubscribed',e)}
   return false;
 }
@@ -1530,10 +1531,11 @@ async function osPermission(){
   if('Notification'in window&&Notification.permission==='denied') return 'denied';
   if(osOn()){
     try{
-      const p=OneSignal.User?.Push;
-      if(p&&p.permission!==undefined) return String(await p.permission);
-      if(typeof OneSignal.getNotificationPermission==='function') return String(await OneSignal.getNotificationPermission());
-      if(typeof OneSignal.getPermissionState==='function') return String(await OneSignal.getPermissionState());
+      const n=OneSignal.Notifications;
+      if(n){
+        if(typeof n.permission==='boolean') return n.permission?'granted':'default';
+        if(n.permissionNative!==undefined) return String(n.permissionNative);
+      }
     }catch(e){}
   }
   return 'Notification'in window?Notification.permission:'unknown';
@@ -1541,8 +1543,11 @@ async function osPermission(){
 async function osUserId(){
   if(!osOn()) return null;
   try{
-    if(OneSignal.User?.Id?.get){const v=await OneSignal.User.Id.get();if(v)return v;}
-    if(typeof OneSignal.getUserId==='function'){const v=await OneSignal.getUserId();if(v)return v;}
+    const sub=OneSignal.User?.PushSubscription;
+    if(sub){
+      const id=sub.id;
+      if(id) return typeof id==='string'?id:await id;
+    }
   }catch(e){}
   return null;
 }
@@ -1566,16 +1571,18 @@ async function initOneSignal(){
       welcomeNotification:{disable:true},
       createNotification:{native:true,fallback:true}
     });
-    OneSignal.on('subscriptionChange',async()=>{
-      S.onesignalId=await osUserId();
-      S.save();
-      renderPushStatus();
-    });
-    OneSignal.on('notificationClick',()=>{
-      window.focus();
-      if(S.t.osNotifId){S.t.osNotifId=null;S.save();}
-    });
     osReady=true;
+    try{
+      OneSignal.User?.PushSubscription?.addEventListener('change',async()=>{
+        S.onesignalId=await osUserId();
+        S.save();
+        renderPushStatus();
+      });
+      OneSignal.Notifications?.addEventListener('click',()=>{
+        window.focus();
+        if(S.t.osNotifId){S.t.osNotifId=null;S.save();}
+      });
+    }catch(e){console.warn('OneSignal event error',e)}
     if(S.user?.uid) OneSignal.login(S.user.uid).catch(()=>{});
     S.onesignalId=await osUserId();
     S.save();
@@ -1615,23 +1622,11 @@ async function enablePush(){
     return;
   }
   try{
-    const p=OneSignal.User?.Push;
-    if(p&&p.requestPermission) await p.requestPermission();
-    else if(typeof OneSignal.showNativePrompt==='function') await OneSignal.showNativePrompt();
+    await OneSignal.Notifications?.requestPermission?.();
   }catch(e){console.warn('push prompt error',e)}
   try{
-    const p=OneSignal.User?.Push;
-    if(p&&p.setSubscription) await p.setSubscription(true);
-  }catch(e){console.warn('setSubscription error',e)}
-  const isSubscribed=await osSubscribed();
-  if(!isSubscribed){
-    try{
-      const sd=OneSignal.Slidedown;
-      if(sd&&typeof sd.promptPush==='function'){
-        await sd.promptPush();
-      }
-    }catch(e){console.warn('Slidedown prompt error',e)}
-  }
+    await OneSignal.User?.PushSubscription?.optIn?.();
+  }catch(e){console.warn('optIn error',e)}
   renderPushStatus();
 }
 
