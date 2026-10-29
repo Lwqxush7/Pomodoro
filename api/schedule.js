@@ -12,7 +12,7 @@
 //   ONESIGNAL_REST_API_KEY  (zorunlu)
 //   APP_URL                 (opsiyonel, bildirime tıklandığında açılacak adres)
 
-const APP_ID = "a823248a-8bfe-48c3-b6ed-96419313a1b4";
+const APP_ID = "c56e2d53-32f3-4b3e-a4da-0f0c8f69ced9";
 const OS_API = "https://onesignal.com/api/v1";
 
 function targetOf({ userId, externalId } = {}) {
