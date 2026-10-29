@@ -4,7 +4,7 @@
 //   -> endAt zamanında planlanmış push bildirimi oluşturur.
 //      externalId: OneSignal external user id (Firebase uid)
 //      userId:     OneSignal user id (S.onesignalId)
-//      İkisi de yoksa tüm kullanıcılara gider (All segmenti).
+//      En az biri zorunlu; hedefsiz bildirim gönderilmez (All segmentine düşmez).
 // PUT { id }
 //   -> Planlanmış bildirimi iptal eder (REST anahtarının Admin erişimde olması gerekir).
 //
@@ -19,7 +19,7 @@ function targetOf({ userId, externalId } = {}) {
   // OneSignal REST API v1: target by external user ID (Firebase UID) first for cross-device delivery
   if (externalId) return { include_external_user_ids: [externalId] };
   if (userId) return { include_player_ids: [userId] };
-  return { included_segments: ["All"] };
+  return null;
 }
 
 export default async function handler(req, res) {
@@ -50,12 +50,18 @@ export default async function handler(req, res) {
         return;
       }
 
+      const target = targetOf({ userId, externalId });
+      if (!target) {
+        res.status(400).json({ error: "userId veya externalId gerekli" });
+        return;
+      }
+
       const payload = {
         app_id: APP_ID,
         headings: { en: title, tr: title },
         contents: { en: body, tr: body },
         send_after: sendAt.toUTCString(),
-        ...targetOf({ userId, externalId })
+        ...target
       };
       if (process.env.APP_URL) payload.launch_url = process.env.APP_URL;
 
