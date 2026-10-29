@@ -428,18 +428,22 @@ function updateSwitch(id, value){
 // --- Year View ---
 // Helper to get duration for a day (handles historical pomodoro counts)
 function dayPomodoroDuration(count, dateObj=null){
+  // When dateObj provided, try to get duration from per-day stored sessions
   if(dateObj){
     const key = localKey(dateObj);
     const entry = S.log[key];
     if(entry){
       if(Array.isArray(entry.sessions)){
+        // Return sum of all session durations stored for this day
         return entry.sessions.reduce((acc, cur) => acc + (Number(cur) || 0), 0);
       }
-      if(entry.pomo){
+      if(typeof entry.pomo==='number' && entry.pomo>0){
+        // Fall back to stored pomo count per session
         return count * entry.pomo;
       }
     }
   }
+  // Default: use configured pomo duration for the given count
   return count * S.cfg.pomo;
 }
 
@@ -687,6 +691,7 @@ $('#backToYear').onclick=closeWeekDetail;
 // --- Timer logic (FIXED: accurate 1-second ticks) ---
 function setMode(m,reset=true){
   cancelScheduledPush();
+  S.t.osNotifId=null;  // Reset scheduled push ID
   S.t.mode=m;
   S.t.left=dur(m);
   if(reset) S.t.total=0;
@@ -880,29 +885,30 @@ async function applyRemoteState(data){
       const remote = data.timer;
       const now = Date.now();
 
-      // Preserve endAt if available, otherwise set from left+duration
-      if(remote.endAt) S.t.endAt = remote.endAt;
-      else if(remote.running) S.t.endAt = remote.lastUpdate + remote.left * 1000;
+      S.t.mode = remote.mode;
+      S.t.running = remote.running;
+      S.t.total = remote.total || 0;
 
-      // If remote timer is running, recalculate left based on endAt to prevent drift
+      // When remote timer is running, use endAt if available to prevent drift
       if(remote.running && remote.endAt){
         const remaining = Math.max(0, Math.ceil((remote.endAt - now) / 1000));
         S.t.left = remaining;
+        S.t.endAt = remote.endAt;
         S.t.lastUpdate = now;
         if(remaining <= 0){
           completeCycle();
           return;
         }
-      }else{
+      }else if(remote.running){
+        // Running but no endAt - calculate from lastUpdate
+        S.t.endAt = remote.lastUpdate + remote.left * 1000;
         S.t.left = remote.left;
+        S.t.lastUpdate = now;
+      }else{
+        // Not running - just restore state
+        S.t.left = remote.left;
+        S.t.endAt = null;
         S.t.lastUpdate = remote.lastUpdate || now;
-      }
-
-      S.t.mode = remote.mode;
-      S.t.running = remote.running;
-      S.t.total = remote.total || 0;
-      if(S.t.endAt){
-        S.t.lastUpdate = Date.now();
       }
     }
 
@@ -966,13 +972,14 @@ const OS_APP_ID="a823248a-8bfe-48c3-b6ed-96419313a1b4";
 let osReady=false;
 const osOn=()=>window.OneSignal&&typeof window.OneSignal.init==='function';
 
-// v16 isim alanları, eski API'ye geri düşerek (legacy fallback) çalışır
+// v16 SDK: güvenli erişim for OneSignal v16 API
 async function osSubscribed(){
   if(!osOn()) return false;
   try{
     const p=OneSignal.User?.Push;
     if(p&&p.optedIn!==undefined) return !!(await p.optedIn);
-    if(OneSignal.isSubscriptionPromoted) return !!(await OneSignal.isSubscriptionPromoted());
+    if(typeof OneSignal.isSubscriptionPromoted==='function') return !!(await OneSignal.isSubscriptionPromoted());
+    if(typeof OneSignal.getPermissionState==='function') return !!(await OneSignal.getPermissionState());
   }catch(e){console.warn('osSubscribed',e)}
   return false;
 }
@@ -982,7 +989,8 @@ async function osPermission(){
     try{
       const p=OneSignal.User?.Push;
       if(p&&p.permission!==undefined) return String(await p.permission);
-      if(OneSignal.getNotificationPermission) return String(await OneSignal.getNotificationPermission());
+      if(typeof OneSignal.getNotificationPermission==='function') return String(await OneSignal.getNotificationPermission());
+      if(typeof OneSignal.getPermissionState==='function') return String(await OneSignal.getPermissionState());
     }catch(e){}
   }
   return 'Notification'in window?Notification.permission:'unknown';
@@ -991,7 +999,7 @@ async function osUserId(){
   if(!osOn()) return null;
   try{
     if(OneSignal.User?.Id?.get){const v=await OneSignal.User.Id.get();if(v)return v;}
-    if(OneSignal.getUserId){const v=await OneSignal.getUserId();if(v)return v;}
+    if(typeof OneSignal.getUserId==='function'){const v=await OneSignal.getUserId();if(v)return v;}
   }catch(e){}
   return null;
 }
@@ -1009,7 +1017,7 @@ async function initOneSignal(){
     await OneSignal.init({
       appId:OS_APP_ID,
       name:"Odak",
-      allowLocalhostAsSecureOrigin:true,
+      allowLocalhostAsSecureOrigin: location.hostname === 'localhost' || location.hostname === '127.0.0.1',
       notifyButton:{enable:false},
       welcomeNotification:{disable:true},
       createNotification:{native:true,fallback:true}
@@ -1052,15 +1060,21 @@ async function enablePush(){
   }
   try{
     const p=OneSignal.User?.Push;
-    if(p?.requestPermission) await p.requestPermission();
+    if(p&&p.requestPermission) await p.requestPermission();
     else if(typeof OneSignal.showNativePrompt==='function') await OneSignal.showNativePrompt();
   }catch(e){console.warn('push prompt error',e)}
   try{
     const p=OneSignal.User?.Push;
-    if(p?.setSubscription) await p.setSubscription(true);
-  }catch(e){}
-  if(!(await osSubscribed())){
-    try{await OneSignal.Slidedown?.promptPush?.()}catch(e){}
+    if(p&&p.setSubscription) await p.setSubscription(true);
+  }catch(e){console.warn('setSubscription error',e)}
+  const isSubscribed=await osSubscribed();
+  if(!isSubscribed){
+    try{
+      const sd=OneSignal.Slidedown;
+      if(sd&&typeof sd.promptPush==='function'){
+        await sd.promptPush();
+      }
+    }catch(e){console.warn('Slidedown prompt error',e)}
   }
   renderPushStatus();
 }
@@ -1073,16 +1087,19 @@ async function renderPushStatus(){
   if(!osReady){el.textContent='Bağlanıyor…';return;}
   const perm=await osPermission();
   if(perm==='denied'||perm==='blocked'){el.textContent='İzin engellendi';return;}
-  el.textContent=(await osSubscribed())?'Abonelik aktif':'Abonelik bekleniyor';
+  const sub=await osSubscribed();
+  el.textContent=sub?'Abonelik aktif':'Abonelik bekleniyor';
 }
 
 // --- Zamanlayıcı sonu için planlı OneSignal push ---
 // Sekme kapatılsa bile süre dolunca OneSignal sunucudan push gönderilir.
 async function scheduleEndPush(){
   if(!S.cfg.push||!S.t.running||!osReady) return;
-  await cancelScheduledPush(); // önceki planlı bildirim varsa iptal et
-  if(!(await osSubscribed())) return;
-  const endAt=new Date(Date.now()+S.t.left*1000).toISOString();
+  const sub=await osSubscribed();
+  if(!sub) return;
+  await cancelScheduledPush();
+  const now=Date.now();
+  const endAt=new Date(now+S.t.left*1000).toISOString();
   const isPomo=S.t.mode==='pomo';
   try{
     const r=await fetch('/api/schedule',{
@@ -1097,9 +1114,10 @@ async function scheduleEndPush(){
     });
     if(r.ok){
       const d=await r.json();
-      if(d.id){S.t.osNotifId=d.id;S.save();}
+      if(d&&d.id){S.t.osNotifId=d.id;S.save();}
     }else{
-      console.warn('scheduleEndPush',await r.json().catch(()=>({})));
+      const err=await r.json().catch(()=>({}));
+      console.warn('scheduleEndPush failed', err);
     }
   }catch(e){console.warn('scheduleEndPush error',e)}
 }
@@ -1107,12 +1125,20 @@ async function scheduleEndPush(){
 async function cancelScheduledPush(){
   const id=S.t.osNotifId;
   if(!id) return;
-  S.t.osNotifId=null;
-  S.save();
-  fetch('/api/schedule',{
-    method:'PUT',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({id})
-  }).catch(()=>{});
+  try{
+    const r=await fetch('/api/schedule',{
+      method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id})
+    });
+    if(r.ok){
+      S.t.osNotifId=null;
+      S.save();
+    }else{
+      console.warn('cancelScheduledPush failed, keeping id');
+    }
+  }catch(e){
+    console.warn('cancelScheduledPush error',e);
+  }
 }
 
 // --- Settings ---
@@ -1170,16 +1196,20 @@ function bindSettings(){
   const volEl=$('#c_vol');
   if(volEl){
     volEl.oninput=e=>{
-      S.cfg.vol=+e.target.value;
+      const v=parseFloat(e.target.value);
+      if(!isNaN(v)) S.cfg.vol=v;
       S.save();
     };
   }
-  
+
   const testBtn=$('#test');
   if(testBtn){
     testBtn.onclick=()=>{
       unlockAudio();
-      requestNotifPerm();
+      // Permission request has issues in some browsers; guard it
+      if('Notification' in window && Notification.permission === 'default'){
+        Notification.requestPermission().catch(()=>{});
+      }
       beep();
     };
   }
@@ -1194,10 +1224,11 @@ $('#go').onclick=()=>{S.t.running?pause():start();};
 $('#reset').onclick=()=>setMode(S.t.mode,true);
 $('#skip').onclick=()=>setMode(S.t.mode==='pomo'?'short':'pomo',false);
 $('#incMin').onclick=()=>{
+  if(S.t.running) return;  // Don't allow increment while timer is running
   const todayKeyVal=todayKey();
   const curr=S.log[todayKeyVal]||{n:0,sessions:[],date:todayKeyVal};
   if(!Array.isArray(curr.sessions)){
-    const pLen=typeof curr.pomo==='number'&&curr.pomo>0?curr.pomo:25;
+    const pLen=typeof curr.pomo==='number'&&curr.pomo>0?curr.pomo:S.cfg.pomo;
     curr.sessions=Array(curr.n||0).fill(pLen);
   }
   curr.sessions.push(S.cfg.pomo);
@@ -1210,10 +1241,11 @@ $('#incMin').onclick=()=>{
   render();
 };
 $('#decMin').onclick=()=>{
+  if(S.t.running) return;  // Don't allow decrement while timer is running
   const todayKeyVal=todayKey();
   const curr=S.log[todayKeyVal]||{n:0,sessions:[],date:todayKeyVal};
   if(!Array.isArray(curr.sessions)){
-    const pLen=typeof curr.pomo==='number'&&curr.pomo>0?curr.pomo:25;
+    const pLen=typeof curr.pomo==='number'&&curr.pomo>0?curr.pomo:S.cfg.pomo;
     curr.sessions=Array(curr.n||0).fill(pLen);
   }
   if(curr.sessions.length>0){
@@ -1221,7 +1253,8 @@ $('#decMin').onclick=()=>{
     curr.n=curr.sessions.length;
     curr.date=todayKeyVal;
     delete curr.pomo;
-    S.t.total=Math.max(0,S.t.total-1);
+    // Only decrement total if we actually have sessions to remove
+    if(curr.n < S.t.total) S.t.total=curr.n;
     S.log[todayKeyVal]=curr;
   }
   S.save();
@@ -1243,7 +1276,7 @@ initOneSignal();
 bindSettings();
 render();
 setInterval(tick,200);
-requestNotifPerm();
+// Note: requestNotifPerm removed - should be requested on user action, not on page load
 </script>
 </body>
 </html>
