@@ -1511,6 +1511,8 @@ completeCycle = function(){
 // --- OneSignal (v16 SDK) ---
 const OS_APP_ID="a823248a-8bfe-48c3-b6ed-96419313a1b4";
 let osReady=false;
+let osInitStarted=false;
+let osInitError=null;
 const osOn=()=>window.OneSignal&&typeof window.OneSignal.init==='function';
 
 // v16 SDK: güvenli erişim for OneSignal v16 API
@@ -1546,7 +1548,7 @@ async function osUserId(){
 }
 
 async function initOneSignal(){
-  if(osReady) return;
+  if(osReady||osInitStarted) return;
   if(!osOn()){
     // SDK 'async' yükleniyor — hazırlanana kadar bekle
     if(!window.__osTries) window.__osTries=0;
@@ -1554,6 +1556,7 @@ async function initOneSignal(){
     if(window.__osTries<40) setTimeout(initOneSignal,250);
     return;
   }
+  osInitStarted=true;
   try{
     await OneSignal.init({
       appId:OS_APP_ID,
@@ -1578,7 +1581,10 @@ async function initOneSignal(){
     S.save();
     renderPushStatus();
     if(S.t.running) scheduleEndPush(); // init gecikirse planlı push kaybolmasın
-  }catch(e){console.warn('OneSignal init error',e)}
+  }catch(e){
+    osInitError=e?.message||String(e);
+    console.warn('OneSignal init error',e);
+  }
 }
 
 // Firebase oturumunu OneSignal kullanıcıyla eşleştir (external user id)
@@ -1597,8 +1603,10 @@ async function enablePush(){
   if(!osReady){
     for(let i=0;i<12&&!osReady;i++) await new Promise(r=>setTimeout(r,250));
   }
+  if(!osReady) await initOneSignal();
   if(!osReady){
-    alert('OneSignal bağlanamadı. İnternet bağlantısını kontrol edip tekrar deneyin.');
+    alert('OneSignal başlatılamadı: '+(osInitError||'bilinmeyen hata')+
+      '\n\nOneSignal panelinde Site URL, sitenin açık adresiyle birebir aynı olmalı.');
     return;
   }
   const perm=await osPermission();
