@@ -6,7 +6,7 @@
 //      userId:     OneSignal user id (S.onesignalId)
 //      En az biri zorunlu; hedefsiz bildirim gönderilmez (All segmentine düşmez).
 // PUT { id }
-//   -> Planlanmış bildirimi iptal eder (REST anahtarının Admin erişimde olması gerekir).
+//   -> Planlanmış bildirimi iptal eder (OneSignal DELETE /notifications/{id}?app_id=...).
 //
 // Ortam değişkenleri (Vercel > Settings > Environment Variables):
 //   ONESIGNAL_REST_API_KEY  (zorunlu)
@@ -86,10 +86,9 @@ export default async function handler(req, res) {
         res.status(400).json({ error: "id gerekli" });
         return;
       }
-      const r = await fetch(`${OS_API}/notifications/${id}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({ q: "" })
+      const r = await fetch(`${OS_API}/notifications/${encodeURIComponent(id)}?app_id=${APP_ID}`, {
+        method: "DELETE",
+        headers
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
