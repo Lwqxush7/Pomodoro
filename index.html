@@ -1182,7 +1182,6 @@ async function releaseWakeLock(){
 
 function setMode(m,reset=true){
   cancelScheduledPush();
-  S.t.osNotifId=null;  // Reset scheduled push ID
   S.t.mode=m;
   S.t.left=dur(m);
   if(reset) S.t.total=0;
@@ -1456,6 +1455,9 @@ async function applyRemoteState(data){
       S.cfg = { ...DEF, ...S.cfg, ...data.cfg };
     }
 
+    // Zamanlayıcı durmuşsa (başka cihazdan durdurulmuş olabilir) bu cihazın planlı push'unu iptal et
+    if(!S.t.running) cancelScheduledPush();
+
     S.save();
     render();
     if(S.t.running){
@@ -1644,17 +1646,22 @@ async function renderPushStatus(){
 
 // --- Zamanlayıcı sonu için planlı OneSignal push ---
 // Sekme kapatılsa bile süre dolunca OneSignal sunucudan push gönderilir.
+// pushSeq: her yeni planlamada artar; durdurulmuş/eskimiş bir planlama bittiğinde
+// oluşan bildirim hemen iptal edilir (başlat-durdur yarış durumunu önler).
+let pushSeq=0;
 async function scheduleEndPush(){
   if(!S.cfg.push||!S.t.running||!osReady) return;
+  const seq=++pushSeq;
   const sub=await osSubscribed();
-  if(!sub) return;
+  if(seq!==pushSeq||!S.t.running||!sub) return;
   if(!S.onesignalId) S.onesignalId=await osUserId();
+  if(seq!==pushSeq||!S.t.running) return;
   const externalId=S.user?.uid||undefined;
   const userId=S.onesignalId||undefined;
   if(!externalId&&!userId) return; // hedef yoksa herkese push gönderme
   await cancelScheduledPush();
-  const now=Date.now();
-  const endAt=new Date(S.t.endAt||(now+S.t.left*1000)).toISOString();
+  if(seq!==pushSeq||!S.t.running) return;
+  const endAt=new Date(S.t.endAt||(Date.now()+S.t.left*1000)).toISOString();
   const isPomo=S.t.mode==='pomo';
   try{
     const r=await fetch('/api/schedule',{
@@ -1669,7 +1676,15 @@ async function scheduleEndPush(){
     });
     if(r.ok){
       const d=await r.json();
-      if(d&&d.id){S.t.osNotifId=d.id;S.save();}
+      if(d&&d.id){
+        if(seq!==pushSeq||!S.t.running){
+          // Planlama sürerken zamanlayıcı durduruldu: bildirimi hemen iptal et
+          await cancelPushById(d.id);
+        }else{
+          S.t.osNotifId=d.id;
+          S.save();
+        }
+      }
     }else{
       const err=await r.json().catch(()=>({}));
       console.warn('scheduleEndPush failed', err);
@@ -1677,22 +1692,28 @@ async function scheduleEndPush(){
   }catch(e){console.warn('scheduleEndPush error',e)}
 }
 
-async function cancelScheduledPush(){
-  const id=S.t.osNotifId;
-  if(!id) return;
+async function cancelPushById(id){
+  if(!id) return false;
   try{
     const r=await fetch('/api/schedule',{
       method:'PUT',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({id})
     });
-    if(r.ok){
-      S.t.osNotifId=null;
-      S.save();
-    }else{
-      console.warn('cancelScheduledPush failed, keeping id');
-    }
+    return r.ok;
   }catch(e){
-    console.warn('cancelScheduledPush error',e);
+    console.warn('cancelPush error',e);
+    return false;
+  }
+}
+
+async function cancelScheduledPush(){
+  const id=S.t.osNotifId;
+  if(!id) return;
+  const ok=await cancelPushById(id);
+  // Yalnızca aynı kayıt hâlâ duruyorsa temizle; araya yeni planlama girdiyse onu silme
+  if(ok&&S.t.osNotifId===id){
+    S.t.osNotifId=null;
+    S.save();
   }
 }
 
